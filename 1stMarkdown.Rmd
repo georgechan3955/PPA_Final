@@ -99,22 +99,101 @@ busStation <-
   st_transform('ESRI:102271')
 ```
 
-## Census Data
+```{r}
+metro <- 
+  st_read("data/mbta_rapid_transit/MBTA_NODE.shp") %>%
+  st_transform('ESRI:102271')
+```
 
 ```{r}
+# income restricted housing by neighborhood
 
+inc_restricted_housing_2022 <- read.csv("https://data.boston.gov/dataset/feddfe5a-df16-4c60-8a3c-640c4d5281cd/resource/bfdeffc7-ab5e-4e28-9561-d4e84c9674e4/download/income-restricted-housing-inventory-2022.csv", stringsAsFactors = FALSE)
 
+inc_restricted_housing_2018 <- read.csv("https://data.boston.gov/dataset/feddfe5a-df16-4c60-8a3c-640c4d5281cd/resource/47d53d7c-25b7-40b4-9259-da1d15373be6/download/income-restricted-inventory-2018-all-income-restricted-projects.csv", stringsAsFactors = FALSE)
 
 ```
 
 
+## Census Data 2015
 
 ```{r}
+
+census_api_key("f681592f0e7bc7e399e41102649c493ec7f7f574") 
+
+variables <- c(
+  totalPop = "B01001_001E",
+  male = "B01001_002E",
+  female = "B01001_026E",
+  age_18_24 = "B01001_007E",
+  age_25_44 = "B01001_012E",
+  age_45_64 = "B01001_016E",
+  age_65plus = "B01001_020E",
+  white = "B02001_002E",
+  black = "B02001_003E",
+  latino = "B03001_003E",
+  other_race = "B02001_004E",
+  income_less_20k = "B19001_002E",
+  income_20k_40k = "B19001_003E",
+  income_40k_60k = "B19001_006E",
+  income_60k_80k = "B19001_008E",
+  income_80k_100k = "B19001_010E",
+  income_more_100k = "B19001_012E",
+  migration_total = "B07001_001E",
+  migration_within_county = "B07001_017E",
+  migration_different_county_same_state = "B07001_033E",
+  migration_different_state = "B07001_049E",
+  migration_from_abroad = "B07001_065E",
+  edu_less_high_school = "B15001_002E",
+  edu_high_school_grad = "B15001_003E",
+  edu_some_college = "B15001_005E",
+  edu_bachelors = "B15001_009E",
+  edu_grad_professional = "B15001_010E",
+  total_housing_units = "B25001_001E",
+  total_poverty = "B06012_002E",
+  vacant_units = "B25002_003E",
+  white_houseOwner = "B25006_002E",
+  total_Ooccupied_Uunits = "B25006_001E",
+  median_HH_income = "B19013_001E"
+)
+
+# Fetch the data for Boston, Suffolk County, Massachusetts
+acs_boston <- get_acs(
+  geography = "tract",
+  variables = variables,
+  year = 2015,
+  state = "25",
+  county = "025",
+  geometry = TRUE,
+  survey = "acs5",
+  output = "wide"
+)%>%
+  st_transform('ESRI:102271')
+
+```
+
+
+```{r}
+acs_boston <- acs_boston %>%
+  dplyr::filter(totalPop != 0)%>%
+  mutate(WhiteHOrate = white_houseOwner/total_Ooccupied_Uunits,
+         pctBachelors = ifelse(totalPop > 0, ((edu_bachelors + edu_grad_professional) / totalPop),0),
+         pctPoverty = ifelse(totalPop > 0, total_poverty / totalPop, 0),
+         pctWhitePop = ifelse(totalPop > 0, white / totalPop, 0),
+         pctLatinoPop = ifelse(totalPop > 0, latino / totalPop, 0),
+         pctBlackPop = ifelse(totalPop > 0, black / totalPop, 0),
+         pctMigration = ifelse(totalPop > 0, migration_total / totalPop, 0),
+         pctForeignMig = ifelse(totalPop > 0, migration_from_abroad / totalPop, 0),
+         landArea = st_area(geometry), 
+         popDensity = totalPop / as.numeric(landArea))
+
 
 ```
 
 ```{r}
-
+# Drop Margin Columns from ACS
+acs_boston <- acs_boston %>%
+  select(-matches("^B.*M$"))
 ```
 
 ```{r}
