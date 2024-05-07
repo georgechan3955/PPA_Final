@@ -1,0 +1,152 @@
+---
+title: "Measuring Gentrification - A Study in Boston"
+author: "Xiayuanshan Gao"
+date: "2024-05-07"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide
+    number_sections: yes
+    theme: cosmo 
+    highlight: tango    
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(sf)
+library(spdep)
+library(caret)
+library(ckanr)
+library(FNN)
+library(grid)
+library(gridExtra)
+library(ggcorrplot) # plot correlation plot
+library(corrr)      # another way to plot correlation plot
+library(kableExtra)
+library(jtools)     # for regression model plots
+library(ggstance) # to support jtools plots
+library(ggpubr)    # plotting R^2 value on ggplot point scatter
+library(broom.mixed) # needed for effects plots
+library(RColorBrewer)
+
+library(RSocrata)
+library(viridis)
+library(spatstat)
+library(spdep)
+library(FNN)
+library(knitr)
+library(kableExtra)
+library(tidycensus)
+
+root.dir = "https://raw.githubusercontent.com/urbanSpatial/Public-Policy-Analytics-Landing/master/DATA/"
+source("https://raw.githubusercontent.com/urbanSpatial/Public-Policy-Analytics-Landing/master/functions.r")
+
+palette5 <- c("#7892B5","#8CB9C0","#91B5A9","#EDCA7F","#D98481")
+palette4 <- c("#7892B5","#8CB9C0","#EDCA7F","#D98481")
+palette2 <- c("#7892B5","#D98481")
+
+```
+
+# Intro
+
+
+# Data Collection
+
+
+
+## Housing Price Data
+
+```{r load}
+nhoods <- st_read("D:/AA MCP/24Spring/PPA/midterm/BPDA_Neighborhood_Boundaries.geojson")%>%
+  st_transform('ESRI:102286')
+
+housing <- 
+  read.csv(file.path(root.dir,"/Chapter3_4/bostonHousePriceData_clean.csv"))
+
+housing.sf <- 
+  housing %>% 
+  st_as_sf(coords = c("Longitude", "Latitude"), crs = 4326, agr = "constant") %>%
+  st_transform('ESRI:102286')
+
+
+bostonCrimes <- read.csv(file.path(root.dir,"/Chapter3_4/bostonCrimes.csv"))
+```
+
+## Spatial Data
+
+```{r}
+# Bike Share Station
+
+blueBikesStation <- read.csv("https://bostonopendata-boston.opendata.arcgis.com/api/download/v1/items/14cc9c330fe641d2ae1bd3b7c29d5008/csv?layers=0", stringsAsFactors = FALSE)
+
+blueBikesStation <- blueBikesStation %>%
+  na.omit() %>%
+  dplyr::select(Y = Latitude, X = Longitude) %>%
+  st_as_sf(coords = c("X", "Y"), crs = 4326, agr = "constant") %>%
+  st_transform('ESRI:102286')
+```
+
+```{r}
+busStation <- 
+  st_read("data/PATI_Bus_Stops.geojson") %>%
+  filter(Municip == "Boston") %>%
+  st_transform('ESRI:102271')
+```
+
+## Census Data
+
+```{r}
+
+
+
+```
+
+
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+
+# Measuring Gentrification
+
+```{r}
+
+```
+
+## 
+
+
+# Methodolody
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
