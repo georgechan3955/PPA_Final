@@ -183,7 +183,8 @@ variables <- c("B01001_001E",
   "B25006_001E",
   "B19013_001E",
 "B25077_001E",
-"B25031_001"
+"B25031_001",
+"B08133_001"
 )
 
 
@@ -262,7 +263,8 @@ acs_la <- acs_la %>%
     total_occupied_units = B25006_001E,
     median_HH_income = B19013_001E,
     houseprice = B25077_001E,
-    rent = B25031_001E
+    rent = B25031_001E,
+    travetimetowork = B08133_001E
   ) %>%
   select(-starts_with("B"),-GEOID,-NAME) %>%
   mutate(
@@ -316,7 +318,8 @@ acs_la20 <- acs_la20 %>%
   total_Ooccupied_Uunits20 = "B25006_001E",
   median_HH_income20 = "B19013_001E",
   houseprice20 = "B25077_001E",
-  rent20="B25031_001E"
+  rent20="B25031_001E",
+  travetimetowork20 = B08133_001E
 )%>%
   dplyr::select(-starts_with("B")) %>% #-starts_with("B") awesome!
   mutate(WhiteHOrate20 = white_houseOwner20/total_Ooccupied_Uunits20,
