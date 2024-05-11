@@ -34,6 +34,7 @@ library(ggstance) # to support jtools plots
 library(ggpubr)    # plotting R^2 value on ggplot point scatter
 library(broom.mixed) # needed for effects plots
 library(RColorBrewer)
+library(RSocrata)
 
 library(RSocrata)
 library(viridis)
@@ -63,20 +64,13 @@ palette2 <- c("#7892B5","#D98481")
 ## Housing Price Data
 
 ```{r load}
-nhoods <- st_read("D:/AA MCP/24Spring/PPA/midterm/BPDA_Neighborhood_Boundaries.geojson")%>%
-  st_transform('ESRI:102286')
 
-housing <- 
-  read.csv(file.path(root.dir,"/Chapter3_4/bostonHousePriceData_clean.csv"))
+# Reading neighborhood boundaries GeoJSON from the raw GitHub URL and transforming CRS
+boundary <- 
+  read.socrata("https://data.lacity.org/resource/d9na-trpa.json")
 
-housing.sf <- 
-  housing %>% 
-  st_as_sf(coords = c("Longitude", "Latitude"), crs = 4326, agr = "constant") %>%
-  st_transform('ESRI:102286')
-
-
-bostonCrimes <- read.csv(file.path(root.dir,"/Chapter3_4/bostonCrimes.csv"))
 ```
+
 
 ## Spatial Data
 
@@ -93,16 +87,62 @@ blueBikesStation <- blueBikesStation %>%
 ```
 
 ```{r}
-busStation <- 
-  st_read("data/PATI_Bus_Stops.geojson") %>%
-  filter(Municip == "Boston") %>%
+busStation <- st_read("https://LA-METRO.maps.arcgis.com/apps/Minimalist/index.html?appid=1fd006edf4cc446cad245c72241afba5") %>%
   st_transform('ESRI:102271')
 ```
 
 ```{r}
 metro <- 
-  st_read("data/mbta_rapid_transit/MBTA_NODE.shp") %>%
-  st_transform('ESRI:102271')
+  st_read("https://public.gis.lacounty.gov/public/rest/services/LACounty_Dynamic/LMS_Data_Public/MapServer/185/query?outFields=*&where=1%3D1&f=geojson")
+  metro <- metro %>%
+  na.omit() %>%
+  dplyr::select(Y = latitude, X = longitude) %>%
+  st_as_sf(coords = c("X", "Y"), crs = 4326, agr = "constant") %>%
+  st_transform('ESRI:102286')
+```
+
+```{r}
+grocerystore <- read.socrata("https://data.lacity.org/resource/g986-7yf9.json")
+
+# Clean and process the data
+grocerystore <- grocerystore %>%
+  na.omit() %>%
+  dplyr::select(location_1.latitude, location_1.longitude) %>%
+  st_as_sf(coords = c("location_1.longitude", "location_1.latitude"), crs = 4326, agr = "constant")
+
+```
+
+```{r}
+# Read new housing permit data
+newhousingpermit <- read.socrata("https://data.lacity.org/resource/5u9x-y4iz.json")
+
+# Clean and process the data
+newhousingpermit <- newhousingpermit %>%
+  dplyr::select(Y = location_1.latitude, X = location_1.longitude) %>%
+  na.omit()%>%
+  st_as_sf(coords = c("X", "Y"), crs = 4326, agr = "constant")
+  
+```
+
+```{r}
+restaurant <- read.socrata("https://data.lacity.org/resource/ieer-tbdq.json")
+
+restaurant <- restaurant %>%
+  dplyr::select(Y = location_1.latitude, X = location_1.longitude) %>%
+  na.omit() %>%
+  st_as_sf(coords = c("X", "Y"), crs = 4326, agr = "constant")  # Transforming to the specified CRS
+
+```
+
+```{r}
+educationfacities <- 
+ st_read("https://services.arcgis.com/RmCCgQtiZLDCtblq/arcgis/rest/services/Schools_Colleges_and_Universities/FeatureServer/0/query?outFields=*&where=1%3D1&f=geojson") 
+
+educationfacities <- educationfacities %>%
+dplyr::select(Y = latitude, X = longitude) %>%
+  na.omit() %>%
+  st_as_sf(coords = c("X", "Y"), crs = 4326, agr = "constant")  # Transforming to the specified CRS
+
 ```
 
 ```{r}
@@ -154,27 +194,44 @@ variables <- c(
   vacant_units = "B25002_003E",
   white_houseOwner = "B25006_002E",
   total_Ooccupied_Uunits = "B25006_001E",
-  median_HH_income = "B19013_001E"
+  median_HH_income = "B19013_001E",
+  houseprice = "B25077_001E"
 )
 
-# Fetch the data for Boston, Suffolk County, Massachusetts
-acs_boston <- get_acs(
+# Fetch the data for LA, LA County, CA,2015
+acs_la <- get_acs(
   geography = "tract",
   variables = variables,
   year = 2015,
-  state = "25",
-  county = "025",
+  state = "06",
+  county = "037",
   geometry = TRUE,
   survey = "acs5",
   output = "wide"
 )%>%
   st_transform('ESRI:102271')
 
+
+
+# Fetch the data for LA, LA County, CA,2020
+acs_la20 <- get_acs(
+  geography = "tract",
+  variables = variables,
+  year = 2020,
+  state = "06",
+  county = "037",
+  geometry = TRUE,
+  survey = "acs5",
+  output = "wide"
+)%>%
+  st_transform('ESRI:102271')
+
+
 ```
 
 
 ```{r}
-acs_boston <- acs_boston %>%
+acs_la <- acs_la %>%
   dplyr::filter(totalPop != 0)%>%
   mutate(WhiteHOrate = white_houseOwner/total_Ooccupied_Uunits,
          pctBachelors = ifelse(totalPop > 0, ((edu_bachelors + edu_grad_professional) / totalPop),0),
@@ -186,13 +243,26 @@ acs_boston <- acs_boston %>%
          pctForeignMig = ifelse(totalPop > 0, migration_from_abroad / totalPop, 0),
          landArea = st_area(geometry), 
          popDensity = totalPop / as.numeric(landArea))
+```
 
-
+```{r}
+acs_la20 <- acs_la20 %>%
+  dplyr::filter(totalPop != 0)%>%
+  mutate(WhiteHOrate15 = white_houseOwner/total_Ooccupied_Uunits,
+         pctBachelors15 = ifelse(totalPop > 0, ((edu_bachelors + edu_grad_professional) / totalPop),0),
+         pctPoverty15 = ifelse(totalPop > 0, total_poverty / totalPop, 0),
+         pctWhitePop15 = ifelse(totalPop > 0, white / totalPop, 0),
+         pctLatinoPop15 = ifelse(totalPop > 0, latino / totalPop, 0),
+         pctBlackPop15 = ifelse(totalPop > 0, black / totalPop, 0),
+         pctMigration15 = ifelse(totalPop > 0, migration_total / totalPop, 0),
+         pctForeignMig15 = ifelse(totalPop > 0, migration_from_abroad / totalPop, 0),
+         landArea15 = st_area(geometry), 
+         popDensity15 = totalPop / as.numeric(landArea))
 ```
 
 ```{r}
 # Drop Margin Columns from ACS
-acs_boston <- acs_boston %>%
+acs_la  <- acs_la  %>%
   select(-matches("^B.*M$"))
 ```
 
@@ -213,12 +283,15 @@ acs_boston <- acs_boston %>%
 # Methodolody
 
 
+# Feature Engineering
+
+```{r}
+
+```
 
 
 
-
-
-
+# Conclusion
 
 
 
