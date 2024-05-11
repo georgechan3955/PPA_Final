@@ -1,5 +1,5 @@
 ---
-title: "Measuring Gentrification - A Study in Boston"
+title: "Measuring Gentrification - A Study in LA"
 author: "Xiayuanshan Gao"
 date: "2024-05-07"
 output: 
@@ -72,90 +72,11 @@ boundary <-
 ```
 
 
-## Spatial Data
-
-```{r}
-# Bike Share Station
-
-blueBikesStation <- read.csv("https://bostonopendata-boston.opendata.arcgis.com/api/download/v1/items/14cc9c330fe641d2ae1bd3b7c29d5008/csv?layers=0", stringsAsFactors = FALSE)
-
-blueBikesStation <- blueBikesStation %>%
-  na.omit() %>%
-  dplyr::select(Y = Latitude, X = Longitude) %>%
-  st_as_sf(coords = c("X", "Y"), crs = 4326, agr = "constant") %>%
-  st_transform('ESRI:102286')
-```
-
-```{r}
-busStation <- st_read("https://LA-METRO.maps.arcgis.com/apps/Minimalist/index.html?appid=1fd006edf4cc446cad245c72241afba5") %>%
-  st_transform('ESRI:102271')
-```
-
-```{r}
-metro <- 
-  st_read("https://public.gis.lacounty.gov/public/rest/services/LACounty_Dynamic/LMS_Data_Public/MapServer/185/query?outFields=*&where=1%3D1&f=geojson")
-  metro <- metro %>%
-  na.omit() %>%
-  dplyr::select(Y = latitude, X = longitude) %>%
-  st_as_sf(coords = c("X", "Y"), crs = 4326, agr = "constant") %>%
-  st_transform('ESRI:102286')
-```
-
-```{r}
-grocerystore <- read.socrata("https://data.lacity.org/resource/g986-7yf9.json")
-
-# Clean and process the data
-grocerystore <- grocerystore %>%
-  na.omit() %>%
-  dplyr::select(location_1.latitude, location_1.longitude) %>%
-  st_as_sf(coords = c("location_1.longitude", "location_1.latitude"), crs = 4326, agr = "constant")
-
-```
-
-```{r}
-# Read new housing permit data
-newhousingpermit <- read.socrata("https://data.lacity.org/resource/5u9x-y4iz.json")
-
-# Clean and process the data
-newhousingpermit <- newhousingpermit %>%
-  dplyr::select(Y = location_1.latitude, X = location_1.longitude) %>%
-  na.omit()%>%
-  st_as_sf(coords = c("X", "Y"), crs = 4326, agr = "constant")
-  
-```
-
-```{r}
-restaurant <- read.socrata("https://data.lacity.org/resource/ieer-tbdq.json")
-
-restaurant <- restaurant %>%
-  dplyr::select(Y = location_1.latitude, X = location_1.longitude) %>%
-  na.omit() %>%
-  st_as_sf(coords = c("X", "Y"), crs = 4326, agr = "constant")  # Transforming to the specified CRS
-
-```
-
-```{r}
-educationfacities <- 
- st_read("https://services.arcgis.com/RmCCgQtiZLDCtblq/arcgis/rest/services/Schools_Colleges_and_Universities/FeatureServer/0/query?outFields=*&where=1%3D1&f=geojson") 
-
-educationfacities <- educationfacities %>%
-dplyr::select(Y = latitude, X = longitude) %>%
-  na.omit() %>%
-  st_as_sf(coords = c("X", "Y"), crs = 4326, agr = "constant")  # Transforming to the specified CRS
-
-```
-
-```{r}
-# income restricted housing by neighborhood
-
-inc_restricted_housing_2022 <- read.csv("https://data.boston.gov/dataset/feddfe5a-df16-4c60-8a3c-640c4d5281cd/resource/bfdeffc7-ab5e-4e28-9561-d4e84c9674e4/download/income-restricted-housing-inventory-2022.csv", stringsAsFactors = FALSE)
-
-inc_restricted_housing_2018 <- read.csv("https://data.boston.gov/dataset/feddfe5a-df16-4c60-8a3c-640c4d5281cd/resource/47d53d7c-25b7-40b4-9259-da1d15373be6/download/income-restricted-inventory-2018-all-income-restricted-projects.csv", stringsAsFactors = FALSE)
-
-```
 
 
 ## Census Data 2015 and 2020
+
+As current studies mentioned the impact of historical racial segregation (Hwang & Sampson, 2014) and migration (Hwang et al., 2015) on gentrification, we give attention on white and minority household ownership proportions and migration rates. We also condifer more demographic variables referencing the study of DeVylder et al. (2019) including gender, age group, annual household income and education level.
 
 ```{r}
 
@@ -190,7 +111,7 @@ variables <- c("B01001_001E",
 
 
 # Fetch the data for LA, LA County, CA,2015
-acs_la <- get_acs(
+acs_la15 <- get_acs(
   geography = "tract",
   variables = variables,
   year = 2015,
@@ -227,7 +148,7 @@ library(dplyr)
 library(sf)  # for spatial operations like st_area()
 
 # Assuming acs_la is already an sf object with proper geometry handling
-acs_la <- acs_la %>%
+acs_la15 <- acs_la15 %>%
   rename(
     totalPop = B01001_001E,
     male = B01001_002E,
@@ -336,10 +257,147 @@ acs_la20 <- acs_la20 %>%
 
 ```{r}
 # Drop Margin Columns from ACS
-data<-st_join(acs_la,acs_la20)
+dat <- st_join(acs_la15,acs_la20)
 ```
 
 ```{r}
+
+```
+
+## Spatial Data
+
+### Amenities 
+```{r}
+busStation <- st_read("https://LA-METRO.maps.arcgis.com/apps/Minimalist/index.html?appid=1fd006edf4cc446cad245c72241afba5") %>%
+  st_transform('ESRI:102271')
+```
+
+```{r}
+metro <- 
+  st_read("https://public.gis.lacounty.gov/public/rest/services/LACounty_Dynamic/LMS_Data_Public/MapServer/185/query?outFields=*&where=1%3D1&f=geojson")
+  metro <- metro %>%
+  na.omit() %>%
+  dplyr::select(Y = latitude, X = longitude) %>%
+  st_as_sf(coords = c("X", "Y"), crs = 4326, agr = "constant") %>%
+  st_transform('ESRI:102286')
+```
+
+```{r}
+grocerystore <- read.socrata("https://data.lacity.org/resource/g986-7yf9.json")
+
+# Clean and process the data
+grocerystore <- grocerystore %>%
+  na.omit() %>%
+  dplyr::select(location_1.latitude, location_1.longitude) %>%
+  st_as_sf(coords = c("location_1.longitude", "location_1.latitude"), crs = 4326, agr = "constant")
+
+```
+
+```{r}
+# Read new housing permit data
+newhousingpermit <- read.socrata("https://data.lacity.org/resource/5u9x-y4iz.json")
+
+# Clean and process the data
+newhousingpermit <- newhousingpermit %>%
+  dplyr::select(Y = location_1.latitude, X = location_1.longitude) %>%
+  na.omit()%>%
+  st_as_sf(coords = c("X", "Y"), crs = 4326, agr = "constant")
+  
+```
+
+```{r}
+restaurant <- read.socrata("https://data.lacity.org/resource/ieer-tbdq.json")
+
+restaurant <- restaurant %>%
+  dplyr::select(Y = location_1.latitude, X = location_1.longitude) %>%
+  na.omit() %>%
+  st_as_sf(coords = c("X", "Y"), crs = 4326, agr = "constant")  # Transforming to the specified CRS
+
+```
+
+```{r}
+educationfacities <- 
+ st_read("https://services.arcgis.com/RmCCgQtiZLDCtblq/arcgis/rest/services/Schools_Colleges_and_Universities/FeatureServer/0/query?outFields=*&where=1%3D1&f=geojson") 
+
+educationfacities <- educationfacities %>%
+dplyr::select(Y = latitude, X = longitude) %>%
+  na.omit() %>%
+  st_as_sf(coords = c("X", "Y"), crs = 4326, agr = "constant")  # Transforming to the specified CRS
+
+```
+
+```{r}
+# income restricted housing by neighborhood
+
+inc_restricted_housing_2022 <- read.csv("https://data.boston.gov/dataset/feddfe5a-df16-4c60-8a3c-640c4d5281cd/resource/bfdeffc7-ab5e-4e28-9561-d4e84c9674e4/download/income-restricted-housing-inventory-2022.csv", stringsAsFactors = FALSE)
+
+inc_restricted_housing_2018 <- read.csv("https://data.boston.gov/dataset/feddfe5a-df16-4c60-8a3c-640c4d5281cd/resource/47d53d7c-25b7-40b4-9259-da1d15373be6/download/income-restricted-inventory-2018-all-income-restricted-projects.csv", stringsAsFactors = FALSE)
+
+```
+
+### Crime in 2015 and 2020
+
+```{r}
+crime2015 <- 
+  read.socrata("https://data.lacity.org/Public-Safety/Crime-Data-from-2010-to-2019/63jg-8b9z/") %>%
+  mutate(year = substr(date_rptd,1,4)) %>% filter(year == "2015") %>%
+  dplyr::select(Y = lat, X = lon) %>%
+  na.omit() %>%
+  st_as_sf(coords = c("X", "Y"), crs = 4326, agr = "constant") %>%
+  st_transform('ESRI:102645')
+  
+  
+```
+
+```{r}
+## mapping 2015 crime density 
+
+crime2015_dens <- stat_density2d(data = data.frame(st_coordinates(crime2015)))
+hm2<-ggplot()+
+  geom_sf(data=boundary,fill='grey99',color='transparent')+
+  stat_density2d(data = data.frame(st_coordinates(crime2015)), 
+                 aes(X, Y, fill = ..level.., alpha = ..level..),
+                 size = 0.01, bins = 40, geom = 'polygon',show.legend = FALSE) +
+  scale_fill_gradient(low = "white", high = "#D98481")+
+  scale_alpha(guide = "none") +
+  labs(title = "2015 Crime Density Map", subtitle = 'Areas with High Density Shown in Red') +
+  geom_sf(data=boundary,fill='transparent',color='grey')+
+  theme_void()+
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5))
+
+```
+
+
+```{r}
+crime2020 <- 
+  read.socrata("https://data.lacity.org/Public-Safety/Crime-Data-from-2020-to-Present/2nrs-mtv8/") %>%
+  mutate(year = substr(date_rptd,1,4)) %>% filter(year == "2020") %>%
+  dplyr::select(Y = lat, X = lon) %>%
+  na.omit() %>%
+  st_as_sf(coords = c("X", "Y"), crs = 4326, agr = "constant") %>%
+  st_transform('ESRI:102645')
+  
+```
+
+```{r}
+## mapping 2020 crime density 
+
+crime2020_dens <- stat_density2d(data = data.frame(st_coordinates(crime2020)))
+hm2<-ggplot()+
+  geom_sf(data=boundary,fill='grey99',color='transparent')+
+  stat_density2d(data = data.frame(st_coordinates(crime2020)), 
+                 aes(X, Y, fill = ..level.., alpha = ..level..),
+                 size = 0.01, bins = 40, geom = 'polygon',show.legend = FALSE) +
+  scale_fill_gradient(low = "white", high = "#D98481")+
+  scale_alpha(guide = "none") +
+  labs(title = "2020 Crime Density Map", subtitle = 'Areas with High Density Shown in Red') +
+  geom_sf(data=boundary,fill='transparent',color='grey')+
+  theme_void()+
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5))
 
 ```
 
@@ -352,11 +410,79 @@ data<-st_join(acs_la,acs_la20)
 
 ## 
 
+# Feature Engineering
+
+## Defining TOD Area (Buffer, Union, and Centroid Selection)
+
+In the following steps, I buffered half-mile from the metro stations and bus stations, and select the census tracts containing the centroids of the buffers. These selected census tracts are defined as TOD area as dummy variable compared to non-TOD area
+```{r Metro Buffer, warning = FALSE, cache = TRUE, message = FALSE}
+metroBuffer <- st_buffer(metro, 2640) 
+busBuffer <- st_buffer(busStation, 2640) 
+
+metroUnion <- st_union(metroBuffer)
+
+busUnion <- st_union(busBuffer)
+
+stopUnion <- st_join(metroUnion, busUnion)
+
+Buffers <- 
+  rbind(
+     metroUnion %>%
+      st_sf() %>%
+      mutate(Legend = "Unioned Metro Buffer") %>%
+      dplyr::select(Legend),
+     busUnion %>%
+      st_sf() %>%
+      mutate(Legend = "Unioned Bus Buffer")) %>%
+      dplyr::select(Legend)
+  
+```
+
+```{r Plot Buffer, warning = FALSE, cache = TRUE, message = FALSE}
+ggplot() +
+  geom_sf(data=Buffers) +
+  geom_sf(data=metro, show.legend = "point") +
+  geom_sf(data=busStation, show.legend = "point") +
+  facet_wrap(~Legend) + 
+  labs(caption = "Figure xx") +
+  theme_void()
+```
+
+```{r union and transformer, warning = FALSE, cache = TRUE, message = FALSE}
+
+Buffers <- st_transform(Buffers, crs = st_crs(dat))
+```
+
+```{r plot intersection, warning = FALSE, cache = TRUE, message = FALSE}
+selectCentroids <-
+  st_centroid(dat)[Buffers,] %>%
+  st_drop_geometry() %>%
+  left_join(., dplyr::select(dat, GEOID), by = "GEOID") %>%
+  st_sf() %>%
+  dplyr::select(totalPop) %>%
+  mutate(Selection_Type = "Select by Centroids")
+
+ggplot() +
+  geom_sf(data=selectCentroids, aes(fill = totalPop)) +
+  geom_sf(data=metro, show.legend = "point") +
+  geom_sf(data=busStation, show.legend = "point") +
+  scale_fill_distiller(palette = "Blues", direction = 1)+
+  facet_wrap(~Selection_Type) + 
+      labs(fill = "ACS estimate", caption = "Figure xx") +
+  theme_void()
+```
+
+## KNN
+
+```{r}
+
+```
 
 # Methodolody
+
 logistic regression
 
-# Feature Engineering
+
 
 ```{r}
 
