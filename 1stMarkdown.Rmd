@@ -608,6 +608,22 @@ dplyr::select(cvFit$resample, -Resample) %>%
 ```
 
 # Validation on Chicago
+```{r}
+## New housing permit
+chicagonewhousingpermit <- read.socrata("https://data.cityofchicago.org/resource/ydr8-5enu.json")
+  
+chicagonewhousingpermit <- chicagonewhousingpermit %>%
+mutate(issue_datenu = as.Date(issue_date, format = "%Y-%m-%d"))
+
+df_2010_to_2015 <- chicagonewhousingpermit  %>%
+  filter(between(as.integer(format(issue_date, "%Y")), 2010, 2015))
+df_2010_to_2015 <- df_2010_to_2015 %>%
+  dplyr::select(issue_date,id,longitude,latitude)%>%
+  na.omit() 
+chicagohousingpermit_sf <- st_as_sf(df_2010_to_2015, coords = c("longitude", "latitude"), crs = 4326, agr = "constant")%>%
+st_transform('ESRI:102271') 
+
+```
 
 ```{r}
 
@@ -642,19 +658,6 @@ chicagogrocerystore <- chicagogrocerystore %>%
 chicagogrocerystore_sf <- st_as_sf(chicagogrocerystore, coords = c("lon", "lat"), crs = 4326, agr = "constant")%>%
 st_transform('ESRI:102271') 
 
-## New housing permit
-chicagonewhousingpermit <- read.socrata("https://data.cityofchicago.org/resource/ydr8-5enu.json") %>%
-  
-chicagonewhousingpermit <- chicagonewhousingpermit %>%
-mutate(issue_datenu = as.Date(issue_date, format = "%Y-%m-%d"))
-
-df_2010_to_2015 <- chicagonewhousingpermit  %>%
-  filter(between(as.integer(format(issue_date, "%Y")), 2010, 2015))
-df_2010_to_2015 <- df_2010_to_2015 %>%
-  dplyr::select(issue_date,id,longitude,latitude)%>%
-  na.omit() 
-chicagogrocerystore_sf <- st_as_sf(df_2010_to_2015, coords = c("longitude", "latitude"), crs = 4326, agr = "constant")%>%
-st_transform('ESRI:102271') 
 
 
 
@@ -689,30 +692,237 @@ schoolchicago <- schoolchicago %>%
   select(-coords, -the_geom.coordinates) 
 # Convert to an sf object with proper coordinates
 schoolchicago_sf <- st_as_sf(schoolchicago, coords = c("lon", "lat"), crs = 4326, agr = "constant")%>%
-st_transform('ESRI:102271') 
+st_transform('ESRI:102271')
+schoolchicago_sf <- schoolchicago_sf%>%
+dplyr::select(geometry)
 
 
 
 # Read the CSV file into an R data frame
-crime_data <- read.csv("C:/Users/jiahangl/OneDrive - PennO365/MUSA508/A4/crime2018.csv")
-crime_data <- crime_data %>%
-  filter(!is.na(Longitude) & !is.na(Latitude))
+#crime_data <- read.csv("C:/Users/jiahangl/OneDrive - PennO365/MUSA508/A4/crime2018.csv")
+#crime_data <- crime_data %>%
+  #filter(!is.na(Longitude) & !is.na(Latitude))
 ```
+
+
 
 #Feature engineering for Chicago
 
 ```{r}
-# get stations in Brooklyn tracts
-grocerystorepoint <- grocerystore %>%
-  st_join(tractgeography, left = F)
-grocerystorenumber <- grocerystorepoint %>%
-  group_by(GEOID) %>%  # Replace TRACT_ID with the actual identifier field for tracts
-  summarise(grocerycount = n())
-  
-grocerystorenumber <- grocerystorenumber
-grocerystorenumber <- st_set_geometry(grocerystorenumber, NULL)
 
-gentrifydata <- left_join(tractclipped, grocerystorenumber )
+# Fetch the data for LA, LA County, CA,2015
+acs_chi <- get_acs(
+  geography = "tract",
+  variables = variables,
+  year = 2015,
+  state = "17",
+  county = "031",
+  geometry = TRUE,
+  survey = "acs5",
+  output = "wide"
+)%>%
+st_transform('ESRI:102271')
+
+
+
+# Fetch the data for LA, LA County, CA,2020
+acs_chi20 <- get_acs(
+  geography = "tract",
+  variables = variables,
+  year = 2020,
+  state = "17",
+  county = "031",
+  geometry = TRUE,
+  survey = "acs5",
+  output = "wide"
+)%>%
+  st_transform('ESRI:102271')
+vars <- load_variables(2020, "acs5", cache = TRUE)
+
+
+
+
+# Assuming acs_la is already an sf object with proper geometry handling
+acs_chi <- acs_chi %>%
+  rename(
+    totalPop = B01001_001E,
+    male = B01001_002E,
+    female = B01001_026E,
+    age_18_24 = B01001_007E,
+    age_25_44 = B01001_012E,
+    age_45_64 = B01001_016E,
+    age_65plus = B01001_020E,
+    white = B02001_002E,
+    popblack = B02001_003E,
+    latino = B03001_003E,
+    other_race = B02001_004E,
+    income_less_20k = B19001_002E,
+    income_20k_40k = B19001_003E,
+    income_40k_60k = B19001_006E,
+    income_60k_80k = B19001_008E,
+    income_80k_100k = B19001_010E,
+    income_more_100k = B19001_012E,
+    migration_total = B07001_001E,
+    migration_within_county = B07001_017E,
+    migration_different_county_same_state = B07001_033E,
+    migration_different_state = B07001_049E,
+    migration_from_abroad = B07001_065E,
+    edu_less_high_school = B15001_002E,
+    edu_high_school_grad = B15001_003E,
+    edu_some_college = B15001_005E,
+    edu_bachelors = B15001_009E,
+    edu_grad_professional = B15001_010E,
+    total_housing_units = B25001_001E,
+    total_poverty = B06012_002E,
+    vacant_units = B25002_003E,
+    white_houseOwner = B25006_002E,
+    total_occupied_units = B25006_001E,
+    median_HH_income = B19013_001E,
+    houseprice = B25077_001E,
+    rent = B25031_001E,
+    travetimetowork = B08133_001E
+  ) %>%
+  select(-starts_with("B"),-GEOID,-NAME) %>%
+  mutate(
+    WhiteHOrate = white_houseOwner / total_occupied_units,
+    pctBachelors = ifelse(totalPop > 0, (edu_bachelors + edu_grad_professional) / totalPop, 0),
+    pctPoverty = ifelse(totalPop > 0, total_poverty / totalPop, 0),
+    pctWhitePop = ifelse(totalPop > 0, white / totalPop, 0),
+    pctLatinoPop = ifelse(totalPop > 0, latino / totalPop, 0),
+    pctBlackPop = ifelse(totalPop > 0, popblack / totalPop, 0),
+    pctMigration = ifelse(totalPop > 0, migration_total / totalPop, 0),
+    pctForeignMig = ifelse(totalPop > 0, migration_from_abroad / totalPop, 0),
+    landArea = st_area(geometry),  # Ensure this is the correct function for your spatial data
+    popDensity = totalPop / as.numeric(landArea)
+  )
+
+
+acs_chi20 <- acs_chi20 %>%
+  rename(totalPop20 = "B01001_001E",
+  male20 = "B01001_002E",
+  female20 = "B01001_026E",
+  age_18_2420 = "B01001_007E",
+  age_25_4420 = "B01001_012E",
+  age_45_6420 = "B01001_016E",
+  age_65plus20 = "B01001_020E",
+  white20 = "B02001_002E",
+  popblack20 = "B02001_003E",
+  latino20 = "B03001_003E",
+  other_race20 = "B02001_004E",
+  income_less_20k20 = "B19001_002E",
+  income_20k_40k20 = "B19001_003E",
+  income_40k_60k20 = "B19001_006E",
+  income_60k_80k20 = "B19001_008E",
+  income_80k_100k20 = "B19001_010E",
+  income_more_100k20 = "B19001_012E",
+  migration_total20 = "B07001_001E",
+  migration_within_county20 = "B07001_017E",
+  migration_different_county_same_state20 = "B07001_033E",
+  migration_different_state20 = "B07001_049E",
+  migration_from_abroad20 = "B07001_065E",
+  edu_less_high_school20 = "B15001_002E",
+  edu_high_school_grad20 = "B15001_003E",
+  edu_some_college20 = "B15001_005E",
+  edu_bachelors20 = "B15001_009E",
+  edu_grad_professional20 = "B15001_010E",
+  total_housing_units20 = "B25001_001E",
+  total_poverty20 = "B06012_002E",
+  vacant_units20 = "B25002_003E",
+  white_houseOwner20 = "B25006_002E",
+  total_Ooccupied_Uunits20 = "B25006_001E",
+  median_HH_income20 = "B19013_001E",
+  houseprice20 = "B25077_001E",
+  rent20="B25031_001E",
+  travetimetowork20 = B08133_001E
+)%>%
+  dplyr::select(-starts_with("B")) %>% #-starts_with("B") awesome!
+  mutate(WhiteHOrate20 = white_houseOwner20/total_Ooccupied_Uunits20,
+         pctBachelors20 = ifelse(totalPop20 > 0, ((edu_bachelors20 + edu_grad_professional20) / totalPop20),0),
+         pctPoverty20 = ifelse(totalPop20 > 0, total_poverty20 / totalPop20, 0),
+         pctWhitePop20 = ifelse(totalPop20 > 0, white20 / totalPop20, 0),
+         pctLatinoPop20 = ifelse(totalPop20 > 0, latino20 / totalPop20, 0),
+         pctBlackPop20 = ifelse(totalPop20 > 0, popblack20 / totalPop20, 0),
+         pctMigration20 = ifelse(totalPop20 > 0, migration_total20 / totalPop20, 0),
+         pctForeignMig20 = ifelse(totalPop20 > 0, migration_from_abroad20 / totalPop20, 0),
+         landArea20 = st_area(geometry), 
+         popDensity20 = totalPop20 / as.numeric(landArea20))
+
+
+
+
+# Drop Margin Columns from ACS
+datachicago<-st_join(acs_chi,acs_chi20)
+chicagoBoundary <- st_transform(chicagoBoundary, crs = st_crs(datachicago))
+tractchicagoclipped <- st_intersection(datachicago, chicagoBoundary)
+tractchicagogeography <- tractchicagoclipped%>%
+  dplyr::select(GEOID, geometry)
+
+
+# grocerystore
+chicagogrocerystore_sf <- chicagogrocerystore_sf %>%
+  st_join(tractchicagogeography, left = F)
+chigrocerystorenumber <- chicagogrocerystore_sf %>%
+  group_by(GEOID) %>%  # Replace TRACT_ID with the actual identifier field for tracts
+  summarise(chigrocerycount = n())
+  
+chigrocerystorenumber <- chigrocerystorenumber
+chigrocerystorenumber <- st_set_geometry(chigrocerystorenumber, NULL)
+
+gentrifydatachi <- left_join(tractchicagogeography, chigrocerystorenumber)
+
+# restaurant
+restaurantchicago <- restaurantchicago %>%
+  st_join(tractchicagogeography, left = F)
+restaurantchicago  <- restaurantchicago  %>%
+  group_by(GEOID) %>%  # Replace TRACT_ID with the actual identifier field for tracts
+  summarise(chirestcount = n())
+  
+restaurantchicago  <- restaurantchicago 
+restaurantchicago  <- st_set_geometry(restaurantchicago , NULL)
+
+gentrifydatachi <- left_join(gentrifydatachi, restaurantchicago )
+
+
+# school
+schoolchicago_sf <- schoolchicago_sf %>%
+  st_join(tractchicagogeography, left = F)
+schoolchicago_sf  <- schoolchicago_sf  %>%
+  group_by(GEOID) %>%  # Replace TRACT_ID with the actual identifier field for tracts
+  summarise(schoolcount = n())
+  
+schoolchicago_sf  <- schoolchicago_sf
+schoolchicago_sf  <- st_set_geometry(schoolchicago_sf, NULL)
+
+gentrifydatachi <- left_join(gentrifydatachi, schoolchicago_sf)
+
+
+```
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ```
 
 
