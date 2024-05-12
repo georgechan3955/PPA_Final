@@ -66,26 +66,23 @@ palette2 <- c("#7892B5","#D98481")
 ```{r load}
 
 # Reading neighborhood boundaries GeoJSON from the raw GitHub URL and transforming CRS
-boundary <- st_read("C:/Users/jiahangl/OneDrive - PennO365/MUSA508/PPA_Final/CityBoundaryofLosAngeles.geojson")%>%
+boundary <- st_read("CityBoundaryofLosAngeles.geojson")%>%
 st_transform('ESRI:102645')
 ```
 
 
 ## Spatial Data
 
-```{r}
-# Bike Share Station
+## Metro Stations
 
-```
 
 ```{r}
-
+metro <- 
+  st_read("data/Metro_Stations.geojson")%>%
+  st_transform('ESRI:102645')
 ```
 
-```{r}
-
-```
-## Grocery store
+### Grocery store
 ```{r}
 grocerystore <- read.socrata("https://data.lacity.org/resource/g986-7yf9.json")
 
@@ -97,7 +94,7 @@ grocerystore <- grocerystore %>%
  st_transform('ESRI:102645')
 ```
 
-## New housing permit
+### New housing permit
 ```{r}
 # Read new housing permit data
 newhousingpermit <- read.socrata("https://data.lacity.org/resource/5u9x-y4iz.json")
@@ -110,7 +107,7 @@ newhousingpermit <- newhousingpermit %>%
    st_transform('ESRI:102645')
 ```
 
-## Restaurant
+### Restaurant
 ```{r}
 restaurant <- read.socrata("https://data.lacity.org/resource/ieer-tbdq.json")
 
@@ -122,7 +119,7 @@ st_transform('ESRI:102645')
 
 ```
 
-## educationfacities
+### educationfacities
 ```{r}
 educationfacilities <- 
  st_read("https://services.arcgis.com/RmCCgQtiZLDCtblq/arcgis/rest/services/Schools_Colleges_and_Universities/FeatureServer/0/query?outFields=*&where=1%3D1&f=geojson") 
@@ -141,6 +138,30 @@ inc_restricted_housing_2022 <- read.csv("https://data.boston.gov/dataset/feddfe5
 
 inc_restricted_housing_2018 <- read.csv("https://data.boston.gov/dataset/feddfe5a-df16-4c60-8a3c-640c4d5281cd/resource/47d53d7c-25b7-40b4-9259-da1d15373be6/download/income-restricted-inventory-2018-all-income-restricted-projects.csv", stringsAsFactors = FALSE)
 
+```
+
+
+
+```{r}
+crime2015 <- 
+  read.socrata("https://data.lacity.org/Public-Safety/Crime-Data-from-2010-to-2019/63jg-8b9z/") %>%
+  mutate(year = substr(date_rptd,1,4)) %>% filter(year == "2015") %>%
+  dplyr::select(Y = lat, X = lon) %>%
+  na.omit() %>%
+  st_as_sf(coords = c("X", "Y"), crs = 4326, agr = "constant") %>%
+  st_transform('ESRI:102645')
+  
+```
+
+```{r}
+crime2020 <- 
+  read.socrata("https://data.lacity.org/Public-Safety/Crime-Data-from-2020-to-Present/2nrs-mtv8/") %>%
+  mutate(year = substr(date_rptd,1,4)) %>% filter(year == "2020") %>%
+  dplyr::select(Y = lat, X = lon) %>%
+  na.omit() %>%
+  st_as_sf(coords = c("X", "Y"), crs = 4326, agr = "constant") %>%
+  st_transform('ESRI:102645')
+  
 ```
 
 
@@ -211,11 +232,7 @@ vars <- load_variables(2020, "acs5", cache = TRUE)
 
 
 ```{r}
-# Load necessary libraries
-library(dplyr)
-library(sf)  # for spatial operations like st_area()
 
-# Assuming acs_la is already an sf object with proper geometry handling
 acs_la <- acs_la %>%
   rename(
     totalPop = B01001_001E,
@@ -265,7 +282,7 @@ acs_la <- acs_la %>%
     pctBlackPop = ifelse(totalPop > 0, popblack / totalPop, 0),
     pctMigration = ifelse(totalPop > 0, migration_total / totalPop, 0),
     pctForeignMig = ifelse(totalPop > 0, migration_from_abroad / totalPop, 0),
-    landArea = st_area(geometry),  # Ensure this is the correct function for your spatial data
+    landArea = st_area(geometry), 
     popDensity = totalPop / as.numeric(landArea)
   )
 
@@ -310,7 +327,7 @@ acs_la20 <- acs_la20 %>%
   rent20="B25031_001E",
   travetimetowork20 = B08133_001E
 )%>%
-  dplyr::select(-starts_with("B")) %>% #-starts_with("B") awesome!
+  dplyr::select(-starts_with("B")) %>% 
   mutate(WhiteHOrate20 = white_houseOwner20/total_Ooccupied_Uunits20,
          pctBachelors20 = ifelse(totalPop20 > 0, ((edu_bachelors20 + edu_grad_professional20) / totalPop20),0),
          pctPoverty20 = ifelse(totalPop20 > 0, total_poverty20 / totalPop20, 0),
@@ -324,7 +341,7 @@ acs_la20 <- acs_la20 %>%
 ```
 
 ```{r}
-# Drop Margin Columns from ACS
+
 data<-st_join(acs_la,acs_la20)
 boundary <- st_transform(boundary, crs = st_crs(data))
 tractclipped <- st_intersection(data, boundary)
@@ -341,14 +358,13 @@ tractgeography <- tractclipped %>%
 ## 
 
 
-# Logistic regression
 
 
-## Feature Engineering
+# Feature Engineering
 
 ## identify change in census
 ```{r}
-# get stations in Brooklyn tracts
+
 tractclipped  <- tractclipped  %>%
   mutate(changeinpoverty = pctPoverty20 - pctPoverty,
          changeinbachelor = pctBachelors20 - pctBachelors,
@@ -360,12 +376,14 @@ tractclipped  <- tractclipped  %>%
 
 
 ## identify number of grocery stores in each tract
+
+
 ```{r}
-# get stations in Brooklyn tracts
+
 grocerystorepoint <- grocerystore %>%
   st_join(tractgeography, left = F)
 grocerystorenumber <- grocerystorepoint %>%
-  group_by(GEOID) %>%  # Replace TRACT_ID with the actual identifier field for tracts
+  group_by(GEOID) %>% 
   summarise(grocerycount = n())
   
 grocerystorenumber <- grocerystorenumber
@@ -373,13 +391,16 @@ grocerystorenumber <- st_set_geometry(grocerystorenumber, NULL)
 
 gentrifydata <- left_join(tractclipped, grocerystorenumber )
 ```
+
 ## identify number of new housing permit in each tract
+
+
 ```{r}
-# get stations in Brooklyn tracts
+
 newhousingpermitpoint <- newhousingpermit %>%
   st_join(tractgeography, left = F)
 newhousingpermitnumber <- newhousingpermitpoint %>%
-  group_by(GEOID) %>%  # Replace TRACT_ID with the actual identifier field for tracts
+  group_by(GEOID) %>% 
   summarise(newhousingpermitcount = n())
   
 newhousingpermitnumber <- newhousingpermitnumber
@@ -387,13 +408,17 @@ newhousingpermitnumber <- st_set_geometry(newhousingpermitnumber, NULL)
 
 gentrifydata <- left_join(gentrifydata, newhousingpermitnumber )
 ```
+
+
 ## identify number of restaurants in each tract
+
+
 ```{r}
-# get stations in Brooklyn tracts
+
 restaurantpoint <- restaurant %>%
   st_join(tractgeography, left = F)
 restaurantnumber <- restaurantpoint %>%
-  group_by(GEOID) %>%  # Replace TRACT_ID with the actual identifier field for tracts
+  group_by(GEOID) %>%  
   summarise(restaurantcount = n())
   
 restaurantnumber <- restaurantnumber
@@ -404,21 +429,25 @@ gentrifydata <- left_join(gentrifydata, restaurantnumber )
 ```
 
 ## identify number of education facilities in each tract
+
 ```{r}
-# get stations in Brooklyn tracts
+
 educationfacilitiespoint <- educationfacilities %>%
   st_join(tractgeography, left = F)
 educationfacilitiesnumber <- educationfacilitiespoint %>%
-  group_by(GEOID) %>%  # Replace TRACT_ID with the actual identifier field for tracts
+  group_by(GEOID) %>%  
   summarise(educationfacilitiescount = n())
   
 educationfacilitiesnumber <- educationfacilitiesnumber
 educationfacilitiesnumber <- st_set_geometry(educationfacilitiesnumber, NULL)
 
-gentrifydata <- left_join(gentrifydata, educationfacilitiesnumber )
 
 ```
+
+
 ## Visualizing amenity patterns
+
+
 ```{r}
 library(ggplot2)
 library(patchwork)
@@ -477,10 +506,131 @@ wrap_plots(
   ncol = 2  
 )
 
+```
 
+
+## Defining TOD Area (Buffer, Union, and Centroid Selection)
+
+In the following steps, I buffered half-mile from the metro stations and bus stations, and select the census tracts containing the centroids of the buffers. These selected census tracts are defined as TOD area as dummy variable compared to non-TOD area
+```{r Metro Buffer, warning = FALSE, cache = TRUE, message = FALSE}
+metroBuffer <- st_buffer(metro, 2640) 
+
+metroUnion <- st_union(metroBuffer)
 
 ```
 
+
+```{r union and transformer, warning = FALSE, cache = TRUE, message = FALSE}
+
+metroUnion <- st_transform(metroUnion, crs = st_crs(tractgeography))
+```
+
+```{r plot intersection, warning = FALSE, cache = TRUE, message = FALSE}
+selectCentroids <- st_centroid(tractgeography)
+
+intersection <- st_intersects(tractgeography, metroUnion, sparse = FALSE)
+
+tractgeography <- tractgeography %>%
+  mutate(intersection = purrr::map_dbl(intersection, ~ ifelse(any(.x), 1, 0)))
+
+intersection_data <- tractgeography %>%
+  select(GEOID, intersection)
+```
+
+```{r}
+gentrifydata <- st_join(gentrifydata, intersection_data, by = "GEOID")
+```
+
+## Crime by Tract
+
+```{r}
+crime2015point <- crime2015 %>%
+  st_join(tractgeography, left = F)
+crime2015number <- crime2015point %>%
+  group_by(GEOID) %>%  
+  summarise(crime2015count = n())
+  
+crime2015number <- crime2015number
+crime2015number <- st_set_geometry(crime2015number, NULL)
+
+gentrifydata <- left_join(gentrifydata, crime2015number, by = c("GEOID.x" = "GEOID"))
+```
+
+```{r}
+crime2020point <- crime2020 %>%
+  st_join(tractgeography, left = F)
+crime2020number <- crime2020point %>%
+  group_by(GEOID) %>%  # Replace TRACT_ID with the actual identifier field for tracts
+  summarise(crime2020count = n())
+  
+crime2020number <- crime2020number
+crime2020number <- st_set_geometry(crime2020number, NULL)
+
+gentrifydata <- left_join(gentrifydata,crime2020number, by = c("GEOID.x" = "GEOID"))
+```
+
+```{r}
+gentrifydata <- gentrifydata %>%
+  mutate(crimeChange = crime2020count - crime2015count)
+
+```
+
+```{r}
+plot_crime2015 <- ggplot() +
+  geom_sf(data = gentrifydata, fill = "transparent", color = "grey") +
+  stat_density2d(data = gentrifydata, 
+                 aes(X, Y, fill = ..level.., alpha = ..level..), 
+                 size = 0.01, bins = 40, geom = 'polygon') +
+  scale_fill_gradient(low = "#7892B5", high = "#fecc5c", name = "Density") +
+  scale_alpha(range = c(0.00, 0.35), guide = FALSE) +
+  labs(title = "Density of Crime in 2015", subtitle = "Los Angeles, CA") +
+  theme_void()
+
+plot_crime2020 <- ggplot() +
+  geom_sf(data = gentrifydata, fill = "transparent", color = "grey") +
+  stat_density2d(data = gentrifydata, 
+                 aes(X, Y, fill = ..level.., alpha = ..level..), 
+                 size = 0.01, bins = 40, geom = 'polygon') +
+  scale_fill_gradient(low = "#7892B5", high = "#fecc5c", name = "Density") +
+  scale_alpha(range = c(0.00, 0.35), guide = FALSE) +
+  labs(title = "Density of Crime in 2020", subtitle = "Los Angeles, CA") +
+  theme_void()
+
+crime_plots <- plot_crime2015 + plot_crime2020 + 
+                  plot_layout(ncol = 2)  # Arrange the plots in 2 columns
+
+# Print the combined plot
+print(combined_plots)
+
+
+```
+```{r}
+plot_crime2015 <- ggplot(data = gentrifydata, aes(fill = crime2015count)) +
+  geom_sf() +
+  scale_fill_viridis_c(option = "plasma", name = "Crime Count 2015") +
+  labs(title = "Density of Crime in 2015", subtitle = "Los Angeles, CA") +
+  theme_void() +
+  theme(legend.position = "bottom")
+
+plot_crime2020 <- ggplot(data = gentrifydata, aes(fill = crime2020count)) +
+  geom_sf() +
+  scale_fill_viridis_c(option = "plasma", name = "Crime Count 2020") +
+  labs(title = "Density of Crime in 2020", subtitle = "Los Angeles, CA") +
+  theme_void() +
+  theme(legend.position = "bottom")
+
+crime_plots <- plot_crime2015 + plot_crime2020 + 
+                  plot_layout(ncol = 2)  # Arrange the plots in 2 columns
+
+# Print the combined plot
+print(crime_plots)
+
+ggsave("crime.png", plot = crime_plots, bg = "transparent", width = 10, height = 8, dpi = 300)
+
+```
+
+
+# Logistic regression
 
 ## Modeling building
 
@@ -897,9 +1047,34 @@ gentrifydatachi <- left_join(gentrifydatachi, schoolchicago_sf)
 
 
 ```
-
-
+```{r}
+crime2015_chi <- 
+    read.socrata("https://data.cityofchicago.org/Public-Safety/Crimes-2001-to-Present/ijzp-q8t2") %>% 
+    filter(year == "2015")
+    dplyr::select(-Date, -Updated.On) %>%
+    mutate(x = gsub("[()]", "", Location)) %>%
+    separate(x,into= c("Y","X"), sep=",") %>%
+    mutate(X = as.numeric(X),Y = as.numeric(Y)) %>% 
+    na.omit() %>%
+    st_as_sf(coords = c("X", "Y"), crs = 4326, agr = "constant")%>%
+    st_transform('ESRI:102271') %>%  
+    distinct()
 ```
+
+```{r}
+crime2020_chi <- 
+    read.socrata("https://data.cityofchicago.org/Public-Safety/Crimes-2001-to-Present/ijzp-q8t2") %>% 
+    filter(year == "2020")
+    dplyr::select(-Date, -Updated.On) %>%
+    mutate(x = gsub("[()]", "", Location)) %>%
+    separate(x,into= c("Y","X"), sep=",") %>%
+    mutate(X = as.numeric(X),Y = as.numeric(Y)) %>% 
+    na.omit() %>%
+    st_as_sf(coords = c("X", "Y"), crs = 4326, agr = "constant")%>%
+    st_transform('ESRI:102271') %>% 
+    distinct()
+```
+
 
 
 
