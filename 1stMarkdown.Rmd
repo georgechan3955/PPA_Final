@@ -621,7 +621,6 @@ chicagoBoundary <-
 # Grocerystore
 chicagogrocerystore <- read.socrata("https://data.cityofchicago.org/resource/3e26-zek2.json")
 
-# Extract longitude and latitude from the string format "c(-87.6277, 41.8819)"
 chicagogrocerystore <- chicagogrocerystore %>%
   mutate(
     location.coordinates = as.character(location.coordinates),  # Convert to character if not already
@@ -633,7 +632,6 @@ chicagogrocerystore <- chicagogrocerystore %>%
   ) %>%
   na.omit()  # Remove rows with NA values possibly due to incorrect parsing
 
-# Create separate longitude and latitude columns
 chicagogrocerystore <- chicagogrocerystore %>%
   mutate(
     lon = sapply(coords, function(x) x[1]),  # Extract first element as longitude
@@ -649,7 +647,7 @@ chicagonewhousingpermit <- read.socrata("https://data.cityofchicago.org/resource
   
 chicagonewhousingpermit <- chicagonewhousingpermit %>%
 mutate(issue_datenu = as.Date(issue_date, format = "%Y-%m-%d"))
-# Filter to include only rows from the years 2010 to 2015
+
 df_2010_to_2015 <- chicagonewhousingpermit  %>%
   filter(between(as.integer(format(issue_date, "%Y")), 2010, 2015))
 df_2010_to_2015 <- df_2010_to_2015 %>%
@@ -661,29 +659,60 @@ st_transform('ESRI:102271')
 
 
 ## Restaurant
-restaurantchicago <- read.socrata("https://data.cityofchicago.org/resource/3e26-zek2.json")
+restaurantchicago <- read.socrata("https://data.cityofchicago.org/resource/5udb-dr6f.json")
 
 restaurantchicago <- restaurantchicago %>%
-  dplyr::select(Y = location_1.latitude, X = location_1.longitude) %>%
+  dplyr::select(Y = latitude, X = longitude) %>%
   na.omit() %>%
   st_as_sf(coords = c("X", "Y"), crs = 4326, agr = "constant") %>% # Transforming to the specified CRS
-st_transform('ESRI:102645')
+st_transform('ESRI:102271')
 
 
-educationfacilities <- 
- st_read("https://services.arcgis.com/RmCCgQtiZLDCtblq/arcgis/rest/services/Schools_Colleges_and_Universities/FeatureServer/0/query?outFields=*&where=1%3D1&f=geojson") 
+# Renaming and transforming the dataframe
+schoolchicago <- read.socrata("https://data.cityofchicago.org/resource/95e9-uzwt.json")
+schoolchicago <- schoolchicago %>%
+  mutate(
+    the_geom.coordinates = as.character(the_geom.coordinates),  # Convert to character if not already
+    coords = sapply(the_geom.coordinates, function(x) {
+      # Remove 'c(' and ')' from the string, split by ', ', and convert to numeric
+      str <- gsub("c\\(|\\)", "", x)
+      as.numeric(strsplit(str, ", ")[[1]])
+    }, simplify = FALSE)  # Ensure output is a list
+  ) %>%
+  na.omit()  # Remove rows with NA values possibly due to incorrect parsing
 
-educationfacilities <- educationfacilities %>%
-dplyr::select(Y = latitude, X = longitude) %>%
-  na.omit() %>%
-  st_as_sf(coords = c("X", "Y"), crs = 4326, agr = "constant")%>%  # Transforming to the specified CRS
-  st_transform('ESRI:102645')
+schoolchicago <- schoolchicago %>%
+  mutate(
+    lon = sapply(coords, function(x) x[1]),  # Extract first element as longitude
+    lat = sapply(coords, function(x) x[2])   # Extract second element as latitude
+  ) %>%
+  select(-coords, -the_geom.coordinates) 
+# Convert to an sf object with proper coordinates
+schoolchicago_sf <- st_as_sf(schoolchicago, coords = c("lon", "lat"), crs = 4326, agr = "constant")%>%
+st_transform('ESRI:102271') 
+
 
 
 # Read the CSV file into an R data frame
 crime_data <- read.csv("C:/Users/jiahangl/OneDrive - PennO365/MUSA508/A4/crime2018.csv")
 crime_data <- crime_data %>%
   filter(!is.na(Longitude) & !is.na(Latitude))
+```
+
+#Feature engineering for Chicago
+
+```{r}
+# get stations in Brooklyn tracts
+grocerystorepoint <- grocerystore %>%
+  st_join(tractgeography, left = F)
+grocerystorenumber <- grocerystorepoint %>%
+  group_by(GEOID) %>%  # Replace TRACT_ID with the actual identifier field for tracts
+  summarise(grocerycount = n())
+  
+grocerystorenumber <- grocerystorenumber
+grocerystorenumber <- st_set_geometry(grocerystorenumber, NULL)
+
+gentrifydata <- left_join(tractclipped, grocerystorenumber )
 ```
 
 
