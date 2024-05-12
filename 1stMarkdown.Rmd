@@ -76,28 +76,14 @@ st_transform('ESRI:102645')
 ```{r}
 # Bike Share Station
 
-blueBikesStation <- read.csv("https://bostonopendata-boston.opendata.arcgis.com/api/download/v1/items/14cc9c330fe641d2ae1bd3b7c29d5008/csv?layers=0", stringsAsFactors = FALSE)
-
-blueBikesStation <- blueBikesStation %>%
-  na.omit() %>%
-  dplyr::select(Y = Latitude, X = Longitude) %>%
-  st_as_sf(coords = c("X", "Y"), crs = 4326, agr = "constant") %>%
-  st_transform('ESRI:102286')
 ```
 
 ```{r}
-busStation <- st_read("https://LA-METRO.maps.arcgis.com/apps/Minimalist/index.html?appid=1fd006edf4cc446cad245c72241afba5") %>%
-  st_transform('ESRI:102645')
+
 ```
 
 ```{r}
-metro <- 
-  st_read("https://public.gis.lacounty.gov/public/rest/services/LACounty_Dynamic/LMS_Data_Public/MapServer/185/query?outFields=*&where=1%3D1&f=geojson")
-  metro <- metro %>%
-  na.omit() %>%
-  dplyr::select(Y = latitude, X = longitude) %>%
-  st_as_sf(coords = c("X", "Y"), crs = 4326, agr = "constant") %>%
-  st_transform('ESRI:102645')
+
 ```
 ## Grocery store
 ```{r}
@@ -355,10 +341,10 @@ tractgeography <- tractclipped %>%
 ## 
 
 
-# Methodolody
-logistic regression
+# Logistic regression
 
-# Feature Engineering
+
+## Feature Engineering
 
 ## identify change in census
 ```{r}
@@ -443,7 +429,7 @@ plot_school <- ggplot() +
   stat_density2d(data = data.frame(st_coordinates(educationfacilitiespoint)), 
                  aes(X, Y, fill = ..level.., alpha = ..level..),
                  size = 0.01, bins = 40, geom = 'polygon') +
-  scale_fill_gradient(low='#08519c', high='#fecc5c', name = "Density") +
+  scale_fill_gradient(low='#7892B5', high='#fecc5c', name = "Density") +
   scale_alpha(range = c(0.00, 0.35), guide = FALSE) +
   labs(title="Density of education facilities")+
    theme_void()
@@ -455,7 +441,7 @@ plot_grocerystores <- ggplot() +
   stat_density2d(data = data.frame(st_coordinates(grocerystorepoint)), 
                  aes(X, Y, fill = ..level.., alpha = ..level..),
                  size = 0.01, bins = 40, geom = 'polygon') +
-  scale_fill_gradient(low='#08519c', high='#fecc5c', name = "Density") +
+  scale_fill_gradient(low='#7892B5', high='#fecc5c', name = "Density") +
   scale_alpha(range = c(0.00, 0.35), guide = FALSE) +
   labs(title="Density of Grocery Stores")+
    theme_void()
@@ -467,7 +453,7 @@ plot_housingpermit <- ggplot() +
   stat_density2d(data = data.frame(st_coordinates(newhousingpermitpoint)), 
                  aes(X, Y, fill = ..level.., alpha = ..level..),
                  size = 0.01, bins = 40, geom = 'polygon') +
-  scale_fill_gradient(low='#08519c', high='#fecc5c', name = "Density") +
+  scale_fill_gradient(low='#7892B5', high='#fecc5c', name = "Density") +
   scale_alpha(range = c(0.00, 0.35), guide = FALSE) +
   labs(title="Density of housingpermit",subtitle = "Los Angelas,CA")+
    theme_void()
@@ -480,7 +466,7 @@ plot_restaurant<- ggplot() +
   stat_density2d(data = data.frame(st_coordinates(restaurantpoint)), 
                  aes(X, Y, fill = ..level.., alpha = ..level..),
                  size = 0.01, bins = 40, geom = 'polygon') +
-  scale_fill_gradient(low='#08519c', high='#fecc5c', name = "Density") +
+  scale_fill_gradient(low='#7892B5', high='#fecc5c', name = "Density") +
   scale_alpha(range = c(0.00, 0.35), guide = FALSE) +
   labs(title="Density of Restaurants",subtitle = "Los Angelas, CA")+
    theme_void()
@@ -496,11 +482,209 @@ wrap_plots(
 ```
 
 
-# Modeling building
+## Modeling building
+
+```{r}
+set.seed(479)
+trainIndex <- createDataPartition(y = paste(recidivism$race) , p = .65,
+                                  list = FALSE,
+                                  times = 1)
+```
 
 
 
-# Cross Validation
+```{r}
+recidivismTrain <- recidivism[ trainIndex,]
+recidivismTest  <- recidivism[-trainIndex,]
+
+recidivismModel <- glm(recidivism_within_3years_numeric ~ .,
+                  data=recidivismTrain %>% 
+                    dplyr::select(recidivism_within_3years_numeric,gender,race,age_at_release,dependents, supervision_level_first,education_level,prison_years,prison_offense,violations,supervision_risk_score_first, percent_days_employed,jobs_per_year,drugtests_thc_positive,drugtests_cocaine_positive, drugtests_meth_positive,gang_affiliated,prior_arrest_episodes_felony,prior_arrest_episodes_misd,prior_arrest_episodes_property,prior_conviction_episodes_6,prior_conviction_episodes_5,prior_conviction_episodes_4,prior_conviction_episodes_3,prior_conviction_episodes_2,prior_conviction_episodes_1,prior_revocations_probation,prior_revocations_parole,delinquency_reports,residence_changes,violations_instruction), family="binomial" (link="logit"))
+
+# Load necessary libraries
+library(dplyr)
+library(knitr)
+library(kableExtra)
+
+# Assuming recidivismModel and previous steps have been correctly run
+recidivism_sum <- summary(recidivismModel)
+coefficients_table <- as.data.frame(recidivism_sum$coefficients)
+
+# Apply significance stars based on p-values
+coefficients_table$significance <- ifelse(coefficients_table$`Pr(>|z|)` < 0.001, '***',
+                                         ifelse(coefficients_table$`Pr(>|z|)` < 0.01, '**',
+                                                ifelse(coefficients_table$`Pr(>|z|)` < 0.05, '*',
+                                                       ifelse(coefficients_table$`Pr(>|z|)` < 0.1, '.', ''))))
+
+
+
+# Print the table with formatting
+kable(coefficients_table %>% select(-significance, -`Pr(>|z|)`), align = "r") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed")) %>%
+  footnote(general_title = "\n", general = "Table 3")
+
+```
+
+```{r}
+#OR <- exp(coefficients(recidivismModel)) #odds ratio (exponentiated coefficients)
+#OR
+```
+
+Visually we now can begin comparing the predictions of recidivism. A negative or 0 value means that there is no recidivism, while a positive or 1 value means that there is recidivism. Strong models will have a peak closer to 0 for the negatives (no recidivism), and a peak closer to 1 for the positives (recidivism). In the following graph we can see that our model is better at prediciting the positives rather than the negatives.
+
+```{r}
+testProbs <- data.frame(Outcome = as.factor(recidivismTest$recidivism_within_3years_numeric), Probs = predict(recidivismModel, recidivismTest, type= "response"))
+head(testProbs)
+```
+
+
+
+
+```{r}
+ggplot(testProbs, aes(x = Probs, fill = as.factor(Outcome))) + 
+  geom_density() +
+  facet_grid(Outcome ~ .) +
+  scale_fill_manual(values = palette2) + xlim(1, 0) +
+  labs(x = "Recidivism", y = "Density of probabilities",
+       title = "Distribution of predicted probabilities by observed outcome") + theme(strip.text.x = element_text(size = 18),
+        legend.position = "none")
+```
+
+
+## Cross Validation
+```{r}
+customSummary <- function(data, lev = NULL, model = NULL) {
+  # Assuming the positive class is labeled as 'True'
+  prob <- ifelse(data[, "true"] >= 0.3, lev[2], lev[1])
+  
+  # Convert probabilities to factors with levels as per the actual outcomes
+  prob <- factor(prob, levels = lev)
+  
+  # Calculate confusion matrix based metrics
+  cm <- confusionMatrix(data = prob, reference = data$obs)
+  
+  # Return a list including metrics like Accuracy, Sensitivity (Recall), and Specificity
+  out <- c(cm$overall['Accuracy'], cm$byClass['Sensitivity'], cm$byClass['Specificity'])
+  names(out) <- c('Accuracy', 'Sensitivity', 'Specificity')
+  out
+}
+
+# Set up trainControl with the custom summary function
+ctrl <- trainControl(method = "cv", 
+                     number = 100, 
+                     classProbs = TRUE, 
+                     summaryFunction = customSummary)
+
+# Fit the model
+cvFit <- train(recidivism_within_3years ~ .,
+               data = recidivism %>% 
+                 select(recidivism_within_3years, gender, race, age_at_release, dependents, supervision_level_first, education_level, prison_years, prison_offense, violations, supervision_risk_score_first, percent_days_employed, jobs_per_year, drugtests_thc_positive, drugtests_cocaine_positive, drugtests_meth_positive, gang_affiliated, prior_arrest_episodes_felony, prior_arrest_episodes_misd, prior_arrest_episodes_property, prior_conviction_episodes_6, prior_conviction_episodes_5, prior_conviction_episodes_4, prior_conviction_episodes_3, prior_conviction_episodes_2, prior_conviction_episodes_1, prior_revocations_probation, prior_revocations_parole, delinquency_reports, residence_changes, violations_instruction),
+               method = "glm", 
+               family = "binomial",
+               metric = "Accuracy",  # Now using Accuracy or whichever metric you prefer
+               trControl = ctrl)
+
+# Print the fit model
+print(cvFit)
+```
+
+
+The figure below plots the distribution of AUC, Sensitivity, and Specificity across the 100 folds. The tighter each distribution is to its mean, the more generalizable the model. Based on the result, our model generalizes well to ROC, sensitivity and specificity. To be more specific, our model generalizes well with respect to the rate it correctly predicts No_recidivism and recidivism. Our model is consistent in how it predicts the outcome,recidivism.
+
+
+
+```{r}
+dplyr::select(cvFit$resample, -Resample) %>%
+  gather(metric, value) %>%
+  left_join(gather(cvFit$results[2:4], metric, mean)) %>%
+  ggplot(aes(value)) + 
+    geom_histogram(bins=35, fill = "#6baed6") +
+    facet_wrap(~metric) +
+    geom_vline(aes(xintercept = mean), colour = "#08519c", linetype = 3, size = 1.5) +
+    scale_x_continuous(limits = c(0, 1)) +
+    labs(x="Goodness of Fit", y="Count", title="CV Goodness of Fit Metrics",
+         subtitle = "Across-fold mean reprented as dotted lines")
+
+```
+
+# Validation on Chicago
+
+```{r}
+
+# Read and process Chicago boundary data
+chicagoBoundary <- 
+  st_read(file.path(root.dir, "/Chapter5/chicagoBoundary.geojson")) %>%  # Read Chicago boundary data
+  st_transform('ESRI:102271')  # Transform coordinate reference system
+
+
+
+# Grocerystore
+chicagogrocerystore <- read.socrata("https://data.cityofchicago.org/resource/3e26-zek2.json")
+
+# Extract longitude and latitude from the string format "c(-87.6277, 41.8819)"
+chicagogrocerystore <- chicagogrocerystore %>%
+  mutate(
+    location.coordinates = as.character(location.coordinates),  # Convert to character if not already
+    coords = sapply(location.coordinates, function(x) {
+      # Remove 'c(' and ')' from the string, split by ', ', and convert to numeric
+      str <- gsub("c\\(|\\)", "", x)
+      as.numeric(strsplit(str, ", ")[[1]])
+    }, simplify = FALSE)  # Ensure output is a list
+  ) %>%
+  na.omit()  # Remove rows with NA values possibly due to incorrect parsing
+
+# Create separate longitude and latitude columns
+chicagogrocerystore <- chicagogrocerystore %>%
+  mutate(
+    lon = sapply(coords, function(x) x[1]),  # Extract first element as longitude
+    lat = sapply(coords, function(x) x[2])   # Extract second element as latitude
+  ) %>%
+  select(-coords, -location.coordinates) 
+# Convert to an sf object with proper coordinates
+chicagogrocerystore_sf <- st_as_sf(chicagogrocerystore, coords = c("lon", "lat"), crs = 4326, agr = "constant")%>%
+st_transform('ESRI:102271') 
+
+## New housing permit
+chicagonewhousingpermit <- read.socrata("https://data.cityofchicago.org/resource/ydr8-5enu.json") %>%
+  
+chicagonewhousingpermit <- chicagonewhousingpermit %>%
+mutate(issue_datenu = as.Date(issue_date, format = "%Y-%m-%d"))
+# Filter to include only rows from the years 2010 to 2015
+df_2010_to_2015 <- chicagonewhousingpermit  %>%
+  filter(between(as.integer(format(issue_date, "%Y")), 2010, 2015))
+df_2010_to_2015 <- df_2010_to_2015 %>%
+  dplyr::select(issue_date,id,longitude,latitude)%>%
+  na.omit() 
+chicagogrocerystore_sf <- st_as_sf(df_2010_to_2015, coords = c("longitude", "latitude"), crs = 4326, agr = "constant")%>%
+st_transform('ESRI:102271') 
+
+
+
+## Restaurant
+restaurantchicago <- read.socrata("https://data.cityofchicago.org/resource/3e26-zek2.json")
+
+restaurantchicago <- restaurantchicago %>%
+  dplyr::select(Y = location_1.latitude, X = location_1.longitude) %>%
+  na.omit() %>%
+  st_as_sf(coords = c("X", "Y"), crs = 4326, agr = "constant") %>% # Transforming to the specified CRS
+st_transform('ESRI:102645')
+
+
+educationfacilities <- 
+ st_read("https://services.arcgis.com/RmCCgQtiZLDCtblq/arcgis/rest/services/Schools_Colleges_and_Universities/FeatureServer/0/query?outFields=*&where=1%3D1&f=geojson") 
+
+educationfacilities <- educationfacilities %>%
+dplyr::select(Y = latitude, X = longitude) %>%
+  na.omit() %>%
+  st_as_sf(coords = c("X", "Y"), crs = 4326, agr = "constant")%>%  # Transforming to the specified CRS
+  st_transform('ESRI:102645')
+
+
+# Read the CSV file into an R data frame
+crime_data <- read.csv("C:/Users/jiahangl/OneDrive - PennO365/MUSA508/A4/crime2018.csv")
+crime_data <- crime_data %>%
+  filter(!is.na(Longitude) & !is.na(Latitude))
+```
 
 
 # Conclusion
