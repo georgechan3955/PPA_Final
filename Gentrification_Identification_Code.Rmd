@@ -31,84 +31,85 @@ variables <- c(med_income = "B19013_001E",  # Median household income
                total_bachelors = "B16010_041E",  # with Bachelor's degree or higher
                med_home_value = "B25077_001E")  # Median home value
 
-variables_2009 <- c(med_income = "B19013_001E",  # Median household income
-               # % with Bachelor's degree or higher
-               med_home_value = "B25077_001E",
-               whitealone_male = 'C15002H_006E',
-               whitealone_female = 'C15002H_011E',
-               black_male = 'C15002B_006E',
-               black_female = 'C15002B_011E',
-               Indian_male = 'C15002C_006E',
-               Indian_female = 'C15002C_011E',
-               Asian_male = 'C15002D_006E',
-               Asian_female = 'C15002D_011E',
-               Hawaiian_male = 'C15002E_006E',
-               Hawaiian_female = 'C15002E_011E',
-               other_male = 'C15002F_006E',
-               other_female = 'C15002F_011E',
-               two_male = 'C15002G_006E',
-               two_female = 'C15002G_011E',
-               hispanic_male = 'C15002I_006E',
-               hispanic_female = 'C15002I_011E'
-               ) 
+# variables_2009 <- c(med_income = "B19013_001E",  # Median household income
+#                # % with Bachelor's degree or higher
+#                med_home_value = "B25077_001E",
+#                whitealone_male = 'C15002H_006E',
+#                whitealone_female = 'C15002H_011E',
+#                black_male = 'C15002B_006E',
+#                black_female = 'C15002B_011E',
+#                Indian_male = 'C15002C_006E',
+#                Indian_female = 'C15002C_011E',
+#                Asian_male = 'C15002D_006E',
+#                Asian_female = 'C15002D_011E',
+#                Hawaiian_male = 'C15002E_006E',
+#                Hawaiian_female = 'C15002E_011E',
+#                other_male = 'C15002F_006E',
+#                other_female = 'C15002F_011E',
+#                two_male = 'C15002G_006E',
+#                two_female = 'C15002G_011E',
+#                hispanic_male = 'C15002I_006E',
+#                hispanic_female = 'C15002I_011E'
+#                ) 
 
 
 
 # Fetch ACS data for 2010 and 2015
-acs2009 <- get_acs(geography = "tract", variables = variables_2009, year = 2009, 
-                   survey = "acs5", state = 06, county = 037, geometry = TRUE,output = "wide") %>% 
-  select(-matches("M$")) %>% 
-  mutate(total_bachelors = whitealone_male + whitealone_female +
-                            black_male + black_female +
-                            Indian_male + Indian_female +
-                            Asian_male + Asian_female +
-                            Hawaiian_male + Hawaiian_female +
-                            other_male + other_female +
-                            two_male + two_female +
-                            hispanic_male + hispanic_female) %>%
-  select(
-    -whitealone_male, -whitealone_female,
-    -black_male, -black_female,
-    -Indian_male, -Indian_female,
-    -Asian_male, -Asian_female,
-    -Hawaiian_male, -Hawaiian_female,
-    -other_male, -other_female,
-    -two_male, -two_female,
-    -hispanic_male, -hispanic_female
-  )
+acs2014 <- get_acs(geography = "tract", variables = variables, year = 2014, 
+                   survey = "acs5", state = 06, county = 037, geometry = TRUE,output = "wide") 
+# %>% 
+#   select(-matches("M$")) %>% 
+#   mutate(total_bachelors = whitealone_male + whitealone_female +
+#                             black_male + black_female +
+#                             Indian_male + Indian_female +
+#                             Asian_male + Asian_female +
+#                             Hawaiian_male + Hawaiian_female +
+#                             other_male + other_female +
+#                             two_male + two_female +
+#                             hispanic_male + hispanic_female) %>%
+#   select(
+#     -whitealone_male, -whitealone_female,
+#     -black_male, -black_female,
+#     -Indian_male, -Indian_female,
+#     -Asian_male, -Asian_female,
+#     -Hawaiian_male, -Hawaiian_female,
+#     -other_male, -other_female,
+#     -two_male, -two_female,
+#     -hispanic_male, -hispanic_female
+#   )
   
 
-acs2010 <- get_acs(geography = "tract", variables = variables, year = 2010, 
+acs2020 <- get_acs(geography = "tract", variables = variables, year = 2020, 
                    survey = "acs5", state = 06, county = 037, geometry = TRUE,output = "wide") %>% 
   select(-matches("M$"))
 acs2015 <- get_acs(geography = "tract", variables = variables, year = 2015, 
-                   survey = "acs5", state = 06, county = 037, geometry = TRUE,,output = "wide") %>% 
+                   survey = "acs5", state = 06, county = 037, geometry = TRUE,output = "wide") %>% 
   select(-matches("M$"))
 
 # Drop geometry for joining data on attributes
-acs2009_nogeom <- st_drop_geometry(acs2009)
-acs2010_nogeom <- st_drop_geometry(acs2010)
+acs2014_nogeom <- st_drop_geometry(acs2014)
+acs2020_nogeom <- st_drop_geometry(acs2020)
 acs2015_nogeom <- st_drop_geometry(acs2015)
 
-acs2009_nogeom <- acs2009_nogeom %>%
-  rename_with(~paste0(., ".2009"), matches("^med_income|^total_bachelors|^med_home_value"))
+acs2014_nogeom <- acs2014_nogeom %>%
+  rename_with(~paste0(., ".2014"), matches("^med_income|^total_bachelors|^med_home_value"))
 
-acs2010_nogeom <- acs2010_nogeom %>%
-  rename_with(~paste0(., ".2010"), matches("^med_income|^total_bachelors|^med_home_value"))
+acs2020_nogeom <- acs2020_nogeom %>%
+  rename_with(~paste0(., ".2020"), matches("^med_income|^total_bachelors|^med_home_value"))
 acs2015_nogeom <- acs2015_nogeom %>%
   rename_with(~paste0(., ".2015"), matches("^med_income|^total_bachelors|^med_home_value"))
 
-data <- left_join(acs2009_nogeom, acs2010_nogeom, by = "GEOID") %>%
+gentrified_data <- left_join(acs2014_nogeom, acs2020_nogeom, by = "GEOID") %>%
   left_join(acs2015_nogeom, by = "GEOID")
-data <- data %>%
+gentrified_data <- gentrified_data %>%
   mutate(
-    income_change_2010_2015 = (`med_income.2015` - `med_income.2010`) / `med_income.2010` * 100,
-    education_change_2010_2015 = (`total_bachelors.2015` - `total_bachelors.2010`) / `total_bachelors.2010` * 100,
-    home_value_change_2010_2015 = (`med_home_value.2015` - `med_home_value.2010`) / `med_home_value.2010` * 100,) %>% 
+    income_change_2020_2015 = (`med_income.2020` - `med_income.2015`) / `med_income.2015` * 100,
+    education_change_2020_2015 = (`total_bachelors.2020` - `total_bachelors.2015`) / `total_bachelors.2015` * 100,
+    home_value_change_2020_2015 = (`med_home_value.2020` - `med_home_value.2015`) / `med_home_value.2015` * 100,) %>% 
   select(-matches("^NAME"))
    
 # Convert it back
-#data_sf <- st_as_sf(data, geometry = st_geometry(acs2009), crs = st_crs(acs2009))
+gentrified_data_sf <- st_as_sf(gentrified_data, geometry = st_geometry(acs2014), crs = st_crs(acs2014))
 
 ```
 
@@ -120,51 +121,51 @@ library(dplyr)
 # Assuming data_sf is already loaded and contains the necessary columns
 
 # Calculate thresholds for 2009
-thresholds_2009 <- data_sf %>%
+thresholds_2014 <- gentrified_data_sf %>%
   summarise(
-    threshold_home_value_2009 = quantile(med_home_value.2009, 0.4, na.rm = TRUE),
-    threshold_income_2009 = quantile(med_income.2009, 0.4, na.rm = TRUE)
+    threshold_home_value_2014 = quantile(med_home_value.2014, 0.4, na.rm = TRUE),
+    threshold_income_2014 = quantile(med_income.2014, 0.4, na.rm = TRUE)
   )
 
 # Convert thresholds to a simpler format if needed (depending on the context)
-thresholds_2009 <- as.data.frame(thresholds_2009)
+thresholds_2014 <- as.data.frame(thresholds_2014)
 
 # Define eligibility in 2009 based on population, home value, and income
-eligible_tracts <- data_sf %>%
+eligible_tracts <- gentrified_data_sf %>%
   filter(#population.2009 > 500,
-         med_home_value.2009 < thresholds_2009$threshold_home_value_2009,
-         med_income.2009 < thresholds_2009$threshold_income_2009)
+         med_home_value.2014 < thresholds_2014$threshold_home_value_2014,
+         med_income.2014 < thresholds_2014$threshold_income_2014)
 
 # Calculate changes from 2010 to 2015
-changes_2010_2015 <- eligible_tracts %>%
+changes_2020_2015 <- eligible_tracts %>%
   mutate(
-    home_value_change = med_home_value.2015 - med_home_value.2010,
-    income_change = med_income.2015 - med_income.2010,
-    education_change = total_bachelors.2015 - total_bachelors.2010
+    home_value_change = med_home_value.2020 - med_home_value.2015,
+    income_change = med_income.2020 - med_income.2015,
+    education_change = total_bachelors.2020 - total_bachelors.2015
   )
 
 # Calculate 60th percentile changes as new thresholds for changes
-thresholds_2010 <- changes_2010_2015 %>%
+thresholds_2015 <- changes_2020_2015 %>%
   summarise(
-    top_60th_home_value_change = quantile(home_value_change, 0.4, na.rm = TRUE),
-    top_60th_income_change = quantile(income_change, 0.4, na.rm = TRUE),
-    top_60th_education_change = quantile(education_change, 0.4, na.rm = TRUE)
+    top_40th_home_value_change = quantile(home_value_change, 0.4, na.rm = TRUE),
+    top_40th_income_change = quantile(income_change, 0.4, na.rm = TRUE),
+    top_40th_education_change = quantile(education_change, 0.4, na.rm = TRUE)
   )
 
 # Convert to a simpler format
-thresholds_2010 <- as.data.frame(thresholds_2010)
+thresholds_2015 <- as.data.frame(thresholds_2015)
 
 # Apply change criteria for 2010-2015
-gentrified_tracts <- changes_2010_2015 %>%
-  filter(home_value_change > thresholds_2010$top_60th_home_value_change,
+gentrified_tracts <- changes_2020_2015 %>%
+  filter(home_value_change > thresholds_2015$top_40th_home_value_change,
          #home_value_change >0,
-         income_change > thresholds_2010$top_60th_income_change,
-         education_change > thresholds_2010$top_60th_education_change)
+         income_change > thresholds_2015$top_40th_income_change,
+         education_change > thresholds_2015$top_40th_education_change)
 
 # Mapping the results
 ggplot(gentrified_tracts) +
   geom_sf(fill = "blue", color = "black") +
-  labs(title = "Gentrified Areas in 2015",
+  labs(title = "Gentrified Areas in 2020",
        subtitle = "Tracts meeting all criteria for significant changes") +
   theme_minimal()
 
@@ -191,7 +192,7 @@ ggplot() +
   geom_sf(data = la_city_boundary, fill = "grey80", color = "black", size = 0.2, alpha = 0.5) +
   geom_sf(data = gentrified_tracts_LA, fill = "blue", color = "black", size = 0.5, alpha = 0.8) +
   labs(
-    title = "Gentrified Areas in LA City, 2015",
+    title = "Gentrified Areas in LA City, 2020",
     subtitle = "Tracts meeting all criteria for significant changes"
   ) +
   theme_minimal()
