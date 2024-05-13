@@ -506,6 +506,7 @@ wrap_plots(
   ncol = 2  
 )
 
+
 ```
 
 
@@ -541,6 +542,24 @@ intersection_data <- tractgeography %>%
 gentrifydata <- st_join(gentrifydata, intersection_data, by = "GEOID")
 ```
 
+```{r}
+tractgeography <- tractgeography %>%
+  mutate(TOD = ifelse(intersection == 1, "TOD", "non-TOD"))
+
+# Basic map with TOD classification
+TOD <- ggplot(data = tractgeography) +
+  geom_sf(aes(fill = TOD), color = "black", size = 0.1) +
+  scale_fill_manual(values = c("TOD" = "#7892B5", "non-TOD" = "#D98481")) +
+  labs(title = "TOD Area by Census Tract",
+       fill = "TOD Status") +
+  theme_void()
+
+# Print the map
+print(map)
+ggsave("TOD.png", plot = TOD, bg = "transparent", width = 10, height = 8, dpi = 300)
+```
+
+
 ## Crime by Tract
 
 ```{r}
@@ -575,35 +594,7 @@ gentrifydata <- gentrifydata %>%
 
 ```
 
-```{r}
-plot_crime2015 <- ggplot() +
-  geom_sf(data = gentrifydata, fill = "transparent", color = "grey") +
-  stat_density2d(data = gentrifydata, 
-                 aes(X, Y, fill = ..level.., alpha = ..level..), 
-                 size = 0.01, bins = 40, geom = 'polygon') +
-  scale_fill_gradient(low = "#7892B5", high = "#fecc5c", name = "Density") +
-  scale_alpha(range = c(0.00, 0.35), guide = FALSE) +
-  labs(title = "Density of Crime in 2015", subtitle = "Los Angeles, CA") +
-  theme_void()
 
-plot_crime2020 <- ggplot() +
-  geom_sf(data = gentrifydata, fill = "transparent", color = "grey") +
-  stat_density2d(data = gentrifydata, 
-                 aes(X, Y, fill = ..level.., alpha = ..level..), 
-                 size = 0.01, bins = 40, geom = 'polygon') +
-  scale_fill_gradient(low = "#7892B5", high = "#fecc5c", name = "Density") +
-  scale_alpha(range = c(0.00, 0.35), guide = FALSE) +
-  labs(title = "Density of Crime in 2020", subtitle = "Los Angeles, CA") +
-  theme_void()
-
-crime_plots <- plot_crime2015 + plot_crime2020 + 
-                  plot_layout(ncol = 2)  # Arrange the plots in 2 columns
-
-# Print the combined plot
-print(combined_plots)
-
-
-```
 ```{r}
 plot_crime2015 <- ggplot(data = gentrifydata, aes(fill = crime2015count)) +
   geom_sf() +
