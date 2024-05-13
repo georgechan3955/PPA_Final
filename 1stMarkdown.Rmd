@@ -563,7 +563,8 @@ tractclippednew <- tractclippednew  %>%
          changeinwhite = pctWhitePop20 - pctWhitePop,
          changeinhouseprice=houseprice20-houseprice,
          changeinrent=rent20-rent,
-         changein2544= pct254020- pct2540)
+         changein2544= pct254020- pct2540,
+         newhousingunit=total_housing_units20-total_housing_units)
 ```
 
 
@@ -585,22 +586,7 @@ grocerystorenumber <- st_set_geometry(grocerystorenumber, NULL)
 gentrifydata <- left_join(tractclippednew, grocerystorenumber )
 ```
 
-## identify number of new housing permit in each tract
 
-
-```{r}
-
-newhousingpermitpoint <- newhousingpermit %>%
-  st_join(tractgeography, left = F)
-newhousingpermitnumber <- newhousingpermitpoint %>%
-  group_by(GEOID) %>% 
-  summarise(newhousingpermitcount = n())
-  
-newhousingpermitnumber <- newhousingpermitnumber
-newhousingpermitnumber <- st_set_geometry(newhousingpermitnumber, NULL)
-
-gentrifydata <- left_join(gentrifydata, newhousingpermitnumber )
-```
 
 
 ## identify number of restaurants in each tract
@@ -851,7 +837,7 @@ trainIndex <- createDataPartition(y = paste(gentrifydata) , p = .65,
 gentrifydataTrain <- gentrifydata[ trainIndex,]
 gentrifydataTest  <- gentrifydata[-trainIndex,]
 
-gentrifyModel <- glm(gentrification ~ .,data=gentrifydataTrain %>% dplyr::select(gentrification, changeinpoverty,changeinbachelor, changeinwhite,pctBachelors20,pctBachelors,houseprice,changein2544,houseprice20,rent,rent20,total_housing_units,total_housing_units20),family="binomial"(link="logit"))
+gentrifyModel <- glm(gentrification ~ .,data=gentrifydataTrain %>% dplyr::select(gentrification, changeinpoverty,changeinbachelor, changeinwhite,pctBachelors20,pctBachelors,changein2544,houseprice20,rent,rent20,changeinhouseprice,newhousingunit),family="binomial"(link="logit"))
 
 # Load necessary libraries
 library(dplyr)
@@ -908,7 +894,7 @@ ggplot(testProbs, aes(x = Probs, fill = as.factor(Outcome))) +
 ```{r}
 testProbs <- 
   testProbs %>%
-  mutate(predOutcome  = as.factor(ifelse(testProbs$Probs > 0.5 , 1, 0)))
+  mutate(predOutcome  = as.factor(ifelse(testProbs$Probs > 0.12 , 1, 0)))
 
 caret::confusionMatrix(testProbs$predOutcome, testProbs$Outcome, 
                        positive = "0")
@@ -978,22 +964,7 @@ dplyr::select(cvFit$resample, -Resample) %>%
 ```
 
 # Validation on Chicago
-```{r}
-## New housing permit
-chicagonewhousingpermit <- read.socrata("https://data.cityofchicago.org/resource/ydr8-5enu.json")
-  
-chicagonewhousingpermit <- chicagonewhousingpermit %>%
-mutate(issue_datenu = as.Date(issue_date, format = "%Y-%m-%d"))
 
-df_2010_to_2015 <- chicagonewhousingpermit  %>%
-  filter(between(as.integer(format(issue_date, "%Y")), 2010, 2015))
-df_2010_to_2015 <- df_2010_to_2015 %>%
-  dplyr::select(issue_date,id,longitude,latitude)%>%
-  na.omit() 
-chicagohousingpermit_sf <- st_as_sf(df_2010_to_2015, coords = c("longitude", "latitude"), crs = 4326, agr = "constant")%>%
-st_transform('ESRI:102271') 
-
-```
 
 ```{r}
 
@@ -1298,27 +1269,6 @@ crime2020_chi <-
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-```
 
 
 # Conclusion
