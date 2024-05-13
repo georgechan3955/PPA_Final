@@ -61,15 +61,6 @@ palette2 <- c("#7892B5","#D98481")
 
 
 
-## boundary
-
-```{r load}
-
-# Reading neighborhood boundaries GeoJSON from the raw GitHub URL and transforming CRS
-boundary <- st_read("CityBoundaryofLosAngeles.geojson")%>%
-st_transform('ESRI:102645')
-```
-
 
 ## Spatial Data
 
@@ -77,6 +68,10 @@ st_transform('ESRI:102645')
 
 
 ```{r}
+# Reading neighborhood boundaries GeoJSON from the raw GitHub URL and transforming CRS
+boundary <- st_read("CityBoundaryofLosAngeles.geojson")%>%
+st_transform('ESRI:102645')
+
 metro <- 
   st_read("data/Metro_Stations.geojson")%>%
   st_transform('ESRI:102645')
@@ -94,18 +89,7 @@ grocerystore <- grocerystore %>%
  st_transform('ESRI:102645')
 ```
 
-### New housing permit
-```{r}
-# Read new housing permit data
-newhousingpermit <- read.socrata("https://data.lacity.org/resource/5u9x-y4iz.json")
 
-# Clean and process the data
-newhousingpermit <- newhousingpermit %>%
-  dplyr::select(Y = location_1.latitude, X = location_1.longitude) %>%
-  na.omit()%>%
-  st_as_sf(coords = c("X", "Y"), crs = 4326, agr = "constant")%>%
-   st_transform('ESRI:102645')
-```
 
 ### Restaurant
 ```{r}
@@ -272,7 +256,7 @@ acs_la <- acs_la %>%
     rent = B25031_001E,
     travetimetowork = B08133_001E
   ) %>%
-  select(-starts_with("B"),-GEOID,-NAME) %>%
+  select(-starts_with("B"),-NAME) %>%
   mutate(
     WhiteHOrate = white_houseOwner / total_occupied_units,
     pctBachelors = ifelse(totalPop > 0, (edu_bachelors + edu_grad_professional) / totalPop, 0),
@@ -282,6 +266,7 @@ acs_la <- acs_la %>%
     pctBlackPop = ifelse(totalPop > 0, popblack / totalPop, 0),
     pctMigration = ifelse(totalPop > 0, migration_total / totalPop, 0),
     pctForeignMig = ifelse(totalPop > 0, migration_from_abroad / totalPop, 0),
+    pct2540 = ifelse(totalPop > 0,  age_25_44 / totalPop, 0),
     landArea = st_area(geometry), 
     popDensity = totalPop / as.numeric(landArea)
   )
@@ -324,8 +309,7 @@ acs_la20 <- acs_la20 %>%
   total_Ooccupied_Uunits20 = "B25006_001E",
   median_HH_income20 = "B19013_001E",
   houseprice20 = "B25077_001E",
-  rent20="B25031_001E",
-  travetimetowork20 = B08133_001E
+  rent20="B25031_001E"
 )%>%
   dplyr::select(-starts_with("B")) %>% 
   mutate(WhiteHOrate20 = white_houseOwner20/total_Ooccupied_Uunits20,
@@ -336,52 +320,262 @@ acs_la20 <- acs_la20 %>%
          pctBlackPop20 = ifelse(totalPop20 > 0, popblack20 / totalPop20, 0),
          pctMigration20 = ifelse(totalPop20 > 0, migration_total20 / totalPop20, 0),
          pctForeignMig20 = ifelse(totalPop20 > 0, migration_from_abroad20 / totalPop20, 0),
+         pct254020 = ifelse(totalPop20 > 0,  age_25_4420 / totalPop20, 0),
          landArea20 = st_area(geometry), 
          popDensity20 = totalPop20 / as.numeric(landArea20))
 ```
 
-```{r}
 
-data<-st_join(acs_la,acs_la20)
-boundary <- st_transform(boundary, crs = st_crs(data))
-tractclipped <- st_intersection(data, boundary)
-tractgeography <- tractclipped %>%
-  dplyr::select(GEOID, geometry)
-```
 
 
 
 
 # Measuring Gentrification
 
+```{r cars}
 
-## 
+library(tidycensus)
+library(dplyr)
+library(sf)
+library(ggplot2)
 
+
+# labor force: B16010_041
+# empolymentL:B23006_023
+# Define variables for ACS data retrieval
+
+variable <- c(med_income = "B19013_001E",  # Median household income
+               total_bachelors = "B16010_041E",  # with Bachelor's degree or higher
+               med_home_value = "B25077_001E")  # Median home value
+
+# variables_2009 <- c(med_income = "B19013_001E",  # Median household income
+#                # % with Bachelor's degree or higher
+#                med_home_value = "B25077_001E",
+#                whitealone_male = 'C15002H_006E',
+#                whitealone_female = 'C15002H_011E',
+#                black_male = 'C15002B_006E',
+#                black_female = 'C15002B_011E',
+#                Indian_male = 'C15002C_006E',
+#                Indian_female = 'C15002C_011E',
+#                Asian_male = 'C15002D_006E',
+#                Asian_female = 'C15002D_011E',
+#                Hawaiian_male = 'C15002E_006E',
+#                Hawaiian_female = 'C15002E_011E',
+#                other_male = 'C15002F_006E',
+#                other_female = 'C15002F_011E',
+#                two_male = 'C15002G_006E',
+#                two_female = 'C15002G_011E',
+#                hispanic_male = 'C15002I_006E',
+#                hispanic_female = 'C15002I_011E'
+#                ) 
+
+
+
+# Fetch ACS data for 2010 and 2015
+acs2014 <- get_acs(geography = "tract", variables = variable, year = 2014, 
+                   survey = "acs5", state = 06, county = 037, geometry = TRUE,output = "wide") 
+# %>% 
+#   select(-matches("M$")) %>% 
+#   mutate(total_bachelors = whitealone_male + whitealone_female +
+#                             black_male + black_female +
+#                             Indian_male + Indian_female +
+#                             Asian_male + Asian_female +
+#                             Hawaiian_male + Hawaiian_female +
+#                             other_male + other_female +
+#                             two_male + two_female +
+#                             hispanic_male + hispanic_female) %>%
+#   select(
+#     -whitealone_male, -whitealone_female,
+#     -black_male, -black_female,
+#     -Indian_male, -Indian_female,
+#     -Asian_male, -Asian_female,
+#     -Hawaiian_male, -Hawaiian_female,
+#     -other_male, -other_female,
+#     -two_male, -two_female,
+#     -hispanic_male, -hispanic_female
+#   )
+  
+
+acs2020 <- get_acs(geography = "tract", variables = variable, year = 2020, 
+                   survey = "acs5", state = 06, county = 037, geometry = TRUE,output = "wide") %>% 
+  select(-matches("M$"))%>% 
+st_transform('ESRI:102645')
+
+acs2015 <- get_acs(geography = "tract", variables = variable, year = 2015, 
+                   survey = "acs5", state = 06, county = 037, geometry = TRUE,output = "wide") %>% 
+  select(-matches("M$"))%>% 
+st_transform('ESRI:102645')
+
+
+# Drop geometry for joining data on attributes
+acs2014_nogeom <- st_drop_geometry(acs2014)
+acs2020_nogeom <- st_drop_geometry(acs2020)
+acs2015_nogeom <- st_drop_geometry(acs2015)
+
+acs2014_nogeom <- acs2014_nogeom %>%
+  rename_with(~paste0(., ".2014"), matches("^med_income|^total_bachelors|^med_home_value"))
+
+acs2020_nogeom <- acs2020_nogeom %>%
+  rename_with(~paste0(., ".2020"), matches("^med_income|^total_bachelors|^med_home_value"))
+acs2015_nogeom <- acs2015_nogeom %>%
+  rename_with(~paste0(., ".2015"), matches("^med_income|^total_bachelors|^med_home_value"))
+
+gentrified_data <- left_join(acs2014_nogeom, acs2020_nogeom, by = "GEOID") %>%
+  left_join(acs2015_nogeom, by = "GEOID")
+gentrified_data <- gentrified_data %>%
+  mutate(
+    income_change_2020_2015 = (`med_income.2020` - `med_income.2015`) / `med_income.2015` * 100,
+    education_change_2020_2015 = (`total_bachelors.2020` - `total_bachelors.2015`) / `total_bachelors.2015` * 100,
+    home_value_change_2020_2015 = (`med_home_value.2020` - `med_home_value.2015`) / `med_home_value.2015` * 100,) %>% 
+  select(-matches("^NAME"))
+   
+# Convert it back
+gentrified_data_sf <- st_as_sf(gentrified_data, geometry = st_geometry(acs2014), crs = st_crs(acs2014))
+
+```
+
+
+
+``` {r testing}
+
+# Assuming data_sf is already loaded and contains the necessary columns
+
+# Calculate thresholds for 2009
+thresholds_2014 <- gentrified_data_sf %>%
+  summarise(
+    threshold_home_value_2014 = quantile(med_home_value.2014, 0.4, na.rm = TRUE),
+    threshold_income_2014 = quantile(med_income.2014, 0.4, na.rm = TRUE)
+  )
+
+# Convert thresholds to a simpler format if needed (depending on the context)
+thresholds_2014 <- as.data.frame(thresholds_2014)
+
+# Define eligibility in 2009 based on population, home value, and income
+eligible_tracts <- gentrified_data_sf %>%
+  filter(#population.2009 > 500,
+         med_home_value.2014 < thresholds_2014$threshold_home_value_2014,
+         med_income.2014 < thresholds_2014$threshold_income_2014)
+
+# Calculate changes from 2010 to 2015
+changes_2020_2015 <- eligible_tracts %>%
+  mutate(
+    home_value_change = med_home_value.2020 - med_home_value.2015,
+    income_change = med_income.2020 - med_income.2015,
+    education_change = total_bachelors.2020 - total_bachelors.2015
+  )
+
+# Calculate 60th percentile changes as new thresholds for changes
+thresholds_2015 <- changes_2020_2015 %>%
+  summarise(
+    top_40th_home_value_change = quantile(home_value_change, 0.4, na.rm = TRUE),
+    top_40th_income_change = quantile(income_change, 0.4, na.rm = TRUE),
+    top_40th_education_change = quantile(education_change, 0.4, na.rm = TRUE)
+  )
+
+# Convert to a simpler format
+thresholds_2015 <- as.data.frame(thresholds_2015)
+
+# Apply change criteria for 2010-2015
+gentrified_tracts <- changes_2020_2015 %>%
+  filter(home_value_change > thresholds_2015$top_40th_home_value_change,
+         #home_value_change >0,
+         income_change > thresholds_2015$top_40th_income_change,
+         education_change > thresholds_2015$top_40th_education_change)
+
+
+gentrified_tracts <- gentrified_tracts %>%
+  dplyr::select(GEOID,geometry)
+
+gentrified_tractsnew <- st_drop_geometry(gentrified_tracts)%>%
+   mutate(gentrification = 1)
+
+# Mapping the results
+ggplot(gentrified_tracts) +
+  geom_sf(fill = "blue", color = "black") +
+  labs(title = "Gentrified Areas in 2020",
+       subtitle = "Tracts meeting all criteria for significant changes") +
+  theme_minimal()
+
+
+# Switch to your own path, Xia and Jiahang!
+#la_city_boundary <- st_read("CityBoundaryofLosAngeles.geojson") %>%
+#st_transform(st_crs(gentrified_tracts))
+
+
+# THIS IS THE DATASET!!!!!!!!!
+#gentrified_tracts_LA <- st_intersection(gentrified_tracts, la_city_boundary)
+
+# Need Spatial Join by geometry or join by GEOID
+```
 
 
 
 # Feature Engineering
 
 ## identify change in census
-```{r}
 
-tractclipped  <- tractclipped  %>%
-  mutate(changeinpoverty = pctPoverty20 - pctPoverty,
-         changeinbachelor = pctBachelors20 - pctBachelors,
-         changeinwhite = pctWhitePop20 - pctWhitePop)
+```{r}
+library(sf)
+library(dplyr)
+
+# Drop geometry from acs_la and acs_la20 and join them
+acs_la_nogeom <- st_drop_geometry(acs_la)
+acs_la20_nogeom <- st_drop_geometry(acs_la20)
+data <- left_join(acs_la_nogeom, acs_la20_nogeom, by = "GEOID")
+
+
+# Convert acs2015 to a spatial dataframe and select relevant columns
+datageography <- st_as_sf(acs2015, geometry = "geometry", crs = 4326) %>%
+  select(GEOID, geometry)
+
+# Joining non-spatial data with spatial data and ensuring it remains a spatial dataframe
+datanew <- left_join(data, datageography, by = "GEOID")
+datanew <- st_as_sf(datanew, geometry = st_geometry(acs_la), crs = st_crs(acs_la))
+
+# Read and transform the boundary to match LA's local projection
+boundary <- st_read("CityBoundaryofLosAngeles.geojson") %>%
+  st_transform(crs = 'ESRI:102645')
+
+# Transform datanew to match the CRS of boundary
+datanew <- st_transform(datanew, st_crs(boundary))
+
+# Perform the intersection of boundary and datanew
+tractclipped <- st_intersection(boundary, datanew)
+
+# Select GEOID and geometry from the intersection result
+tractgeography <- tractclipped %>%
+  select(GEOID, geometry)
+
+# Correcting the assignment and ensuring proper use of the pipe operator
+tractclippednew <- tractclipped %>%
+  left_join(gentrified_tractsnew[, c("GEOID", "gentrification")], by = "GEOID")
+
+# Assuming your dataframe is called 'data'
+tractclippednew <- tractclippednew %>%
+  mutate(gentrification = replace_na(gentrification, 0))
+
 ```
 
-
-
+```{r}
+tractclippednew <- tractclippednew  %>%
+  mutate(changeinpoverty = pctPoverty20 - pctPoverty,
+         changeinbachelor = pctBachelors20 - pctBachelors,
+         changeinwhite = pctWhitePop20 - pctWhitePop,
+         changeinhouseprice=houseprice20-houseprice,
+         changeinrent=rent20-rent,
+         changein2544= pct254020- pct2540,
+         newhousingunit=total_housing_units20-total_housing_units)
+```
 
 
 ## identify number of grocery stores in each tract
 
-
 ```{r}
 
 grocerystorepoint <- grocerystore %>%
+  st_transform(st_crs(tractgeography))%>%
   st_join(tractgeography, left = F)
+  
 grocerystorenumber <- grocerystorepoint %>%
   group_by(GEOID) %>% 
   summarise(grocerycount = n())
@@ -389,25 +583,10 @@ grocerystorenumber <- grocerystorepoint %>%
 grocerystorenumber <- grocerystorenumber
 grocerystorenumber <- st_set_geometry(grocerystorenumber, NULL)
 
-gentrifydata <- left_join(tractclipped, grocerystorenumber )
+gentrifydata <- left_join(tractclippednew, grocerystorenumber )
 ```
 
-## identify number of new housing permit in each tract
 
-
-```{r}
-
-newhousingpermitpoint <- newhousingpermit %>%
-  st_join(tractgeography, left = F)
-newhousingpermitnumber <- newhousingpermitpoint %>%
-  group_by(GEOID) %>% 
-  summarise(newhousingpermitcount = n())
-  
-newhousingpermitnumber <- newhousingpermitnumber
-newhousingpermitnumber <- st_set_geometry(newhousingpermitnumber, NULL)
-
-gentrifydata <- left_join(gentrifydata, newhousingpermitnumber )
-```
 
 
 ## identify number of restaurants in each tract
@@ -595,6 +774,7 @@ gentrifydata <- gentrifydata %>%
 ```
 
 
+
 ```{r}
 plot_crime2015 <- ggplot(data = gentrifydata, aes(fill = crime2015count)) +
   geom_sf() +
@@ -622,12 +802,22 @@ ggsave("crime.png", plot = crime_plots, bg = "transparent", width = 10, height =
 
 
 # Logistic regression
-
+```{r}
+colnames(gentrifydata)
+```
 ## Modeling building
 
+
+
+
+
+
 ```{r}
+
+gentrifydata <- st_set_geometry(gentrifydata, NULL)
+# Replace NA values in the 'gentrification' column with 0 (or another appropriate value)
 set.seed(479)
-trainIndex <- createDataPartition(y = paste(recidivism$race) , p = .65,
+trainIndex <- createDataPartition(y = paste(gentrifydata) , p = .65,
                                   list = FALSE,
                                   times = 1)
 ```
@@ -635,12 +825,10 @@ trainIndex <- createDataPartition(y = paste(recidivism$race) , p = .65,
 
 
 ```{r}
-recidivismTrain <- recidivism[ trainIndex,]
-recidivismTest  <- recidivism[-trainIndex,]
+gentrifydataTrain <- gentrifydata[ trainIndex,]
+gentrifydataTest  <- gentrifydata[-trainIndex,]
 
-recidivismModel <- glm(recidivism_within_3years_numeric ~ .,
-                  data=recidivismTrain %>% 
-                    dplyr::select(recidivism_within_3years_numeric,gender,race,age_at_release,dependents, supervision_level_first,education_level,prison_years,prison_offense,violations,supervision_risk_score_first, percent_days_employed,jobs_per_year,drugtests_thc_positive,drugtests_cocaine_positive, drugtests_meth_positive,gang_affiliated,prior_arrest_episodes_felony,prior_arrest_episodes_misd,prior_arrest_episodes_property,prior_conviction_episodes_6,prior_conviction_episodes_5,prior_conviction_episodes_4,prior_conviction_episodes_3,prior_conviction_episodes_2,prior_conviction_episodes_1,prior_revocations_probation,prior_revocations_parole,delinquency_reports,residence_changes,violations_instruction), family="binomial" (link="logit"))
+gentrifyModel <- glm(gentrification ~ .,data=gentrifydataTrain %>% dplyr::select(gentrification, changeinpoverty,changeinbachelor, changeinwhite,pctBachelors20,pctBachelors,changein2544,houseprice20,rent,rent20,changeinhouseprice,newhousingunit),family="binomial"(link="logit"))
 
 # Load necessary libraries
 library(dplyr)
@@ -648,8 +836,8 @@ library(knitr)
 library(kableExtra)
 
 # Assuming recidivismModel and previous steps have been correctly run
-recidivism_sum <- summary(recidivismModel)
-coefficients_table <- as.data.frame(recidivism_sum$coefficients)
+gentrifyModel_sum <- summary(gentrifyModel)
+coefficients_table <- as.data.frame(gentrifyModel_sum $coefficients)
 
 # Apply significance stars based on p-values
 coefficients_table$significance <- ifelse(coefficients_table$`Pr(>|z|)` < 0.001, '***',
@@ -663,18 +851,20 @@ coefficients_table$significance <- ifelse(coefficients_table$`Pr(>|z|)` < 0.001,
 kable(coefficients_table %>% select(-significance, -`Pr(>|z|)`), align = "r") %>%
   kable_styling(bootstrap_options = c("striped", "hover", "condensed")) %>%
   footnote(general_title = "\n", general = "Table 3")
-
+summary(gentrifyModel)
 ```
 
 ```{r}
-#OR <- exp(coefficients(recidivismModel)) #odds ratio (exponentiated coefficients)
-#OR
+library(pscl)
+library(plotROC)
+library(pROC)
+pR2(gentrifyModel ) #McFadden: 0.246
 ```
 
 Visually we now can begin comparing the predictions of recidivism. A negative or 0 value means that there is no recidivism, while a positive or 1 value means that there is recidivism. Strong models will have a peak closer to 0 for the negatives (no recidivism), and a peak closer to 1 for the positives (recidivism). In the following graph we can see that our model is better at prediciting the positives rather than the negatives.
 
 ```{r}
-testProbs <- data.frame(Outcome = as.factor(recidivismTest$recidivism_within_3years_numeric), Probs = predict(recidivismModel, recidivismTest, type= "response"))
+testProbs <- data.frame(Outcome = as.factor(gentrifydataTest $gentrification), Probs = predict(gentrifyModel, gentrifydataTest , type= "response"))
 head(testProbs)
 ```
 
@@ -686,14 +876,30 @@ ggplot(testProbs, aes(x = Probs, fill = as.factor(Outcome))) +
   geom_density() +
   facet_grid(Outcome ~ .) +
   scale_fill_manual(values = palette2) + xlim(1, 0) +
-  labs(x = "Recidivism", y = "Density of probabilities",
+  labs(x = "Gentrification", y = "Density of probabilities",
        title = "Distribution of predicted probabilities by observed outcome") + theme(strip.text.x = element_text(size = 18),
         legend.position = "none")
+```
+## Confusion matrix
+
+```{r}
+testProbs <- 
+  testProbs %>%
+  mutate(predOutcome  = as.factor(ifelse(testProbs$Probs > 0.12 , 1, 0)))
+
+caret::confusionMatrix(testProbs$predOutcome, testProbs$Outcome, 
+                       positive = "0")
 ```
 
 
 ## Cross Validation
 ```{r}
+
+
+# Replace NA values in the 'gentrification' column with 0 (or another appropriate value)
+gentrifydata$gentrification <- ifelse(is.na(gentrifydata$gentrification), 0, gentrifydata$gentrification)
+
+
 customSummary <- function(data, lev = NULL, model = NULL) {
   # Assuming the positive class is labeled as 'True'
   prob <- ifelse(data[, "true"] >= 0.3, lev[2], lev[1])
@@ -717,9 +923,9 @@ ctrl <- trainControl(method = "cv",
                      summaryFunction = customSummary)
 
 # Fit the model
-cvFit <- train(recidivism_within_3years ~ .,
-               data = recidivism %>% 
-                 select(recidivism_within_3years, gender, race, age_at_release, dependents, supervision_level_first, education_level, prison_years, prison_offense, violations, supervision_risk_score_first, percent_days_employed, jobs_per_year, drugtests_thc_positive, drugtests_cocaine_positive, drugtests_meth_positive, gang_affiliated, prior_arrest_episodes_felony, prior_arrest_episodes_misd, prior_arrest_episodes_property, prior_conviction_episodes_6, prior_conviction_episodes_5, prior_conviction_episodes_4, prior_conviction_episodes_3, prior_conviction_episodes_2, prior_conviction_episodes_1, prior_revocations_probation, prior_revocations_parole, delinquency_reports, residence_changes, violations_instruction),
+cvFit <- train(gentrification ~ .,
+               data = gentrifydata %>% 
+                 select(gentrification, changeinpoverty,changeinbachelor, changeinwhite,pctBachelors20,houseprice,changein2544),
                method = "glm", 
                family = "binomial",
                metric = "Accuracy",  # Now using Accuracy or whichever metric you prefer
@@ -749,22 +955,7 @@ dplyr::select(cvFit$resample, -Resample) %>%
 ```
 
 # Validation on Chicago
-```{r}
-## New housing permit
-chicagonewhousingpermit <- read.socrata("https://data.cityofchicago.org/resource/ydr8-5enu.json")
-  
-chicagonewhousingpermit <- chicagonewhousingpermit %>%
-mutate(issue_datenu = as.Date(issue_date, format = "%Y-%m-%d"))
 
-df_2010_to_2015 <- chicagonewhousingpermit  %>%
-  filter(between(as.integer(format(issue_date, "%Y")), 2010, 2015))
-df_2010_to_2015 <- df_2010_to_2015 %>%
-  dplyr::select(issue_date,id,longitude,latitude)%>%
-  na.omit() 
-chicagohousingpermit_sf <- st_as_sf(df_2010_to_2015, coords = c("longitude", "latitude"), crs = 4326, agr = "constant")%>%
-st_transform('ESRI:102271') 
-
-```
 
 ```{r}
 
@@ -1069,27 +1260,6 @@ crime2020_chi <-
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-```
 
 
 # Conclusion

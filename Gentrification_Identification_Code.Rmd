@@ -1,0 +1,373 @@
+---
+title: "gentrification_testing"
+author: "George Chen"
+date: "2024-05-12"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+
+library(tidycensus)
+library(dplyr)
+library(sf)
+library(ggplot2)
+
+
+# labor force: B16010_041
+# empolymentL:B23006_023
+# Define variables for ACS data retrieval
+
+variables <- c(med_income = "B19013_001E",  # Median household income
+               total_bachelors = "B16010_041E",  # with Bachelor's degree or higher
+               med_home_value = "B25077_001E")  # Median home value
+
+# variables_2009 <- c(med_income = "B19013_001E",  # Median household income
+#                # % with Bachelor's degree or higher
+#                med_home_value = "B25077_001E",
+#                whitealone_male = 'C15002H_006E',
+#                whitealone_female = 'C15002H_011E',
+#                black_male = 'C15002B_006E',
+#                black_female = 'C15002B_011E',
+#                Indian_male = 'C15002C_006E',
+#                Indian_female = 'C15002C_011E',
+#                Asian_male = 'C15002D_006E',
+#                Asian_female = 'C15002D_011E',
+#                Hawaiian_male = 'C15002E_006E',
+#                Hawaiian_female = 'C15002E_011E',
+#                other_male = 'C15002F_006E',
+#                other_female = 'C15002F_011E',
+#                two_male = 'C15002G_006E',
+#                two_female = 'C15002G_011E',
+#                hispanic_male = 'C15002I_006E',
+#                hispanic_female = 'C15002I_011E'
+#                ) 
+
+
+
+# Fetch ACS data for 2010 and 2015
+acs2014 <- get_acs(geography = "tract", variables = variables, year = 2014, 
+                   survey = "acs5", state = 06, county = 037, geometry = TRUE,output = "wide") 
+# %>% 
+#   select(-matches("M$")) %>% 
+#   mutate(total_bachelors = whitealone_male + whitealone_female +
+#                             black_male + black_female +
+#                             Indian_male + Indian_female +
+#                             Asian_male + Asian_female +
+#                             Hawaiian_male + Hawaiian_female +
+#                             other_male + other_female +
+#                             two_male + two_female +
+#                             hispanic_male + hispanic_female) %>%
+#   select(
+#     -whitealone_male, -whitealone_female,
+#     -black_male, -black_female,
+#     -Indian_male, -Indian_female,
+#     -Asian_male, -Asian_female,
+#     -Hawaiian_male, -Hawaiian_female,
+#     -other_male, -other_female,
+#     -two_male, -two_female,
+#     -hispanic_male, -hispanic_female
+#   )
+  
+
+acs2020 <- get_acs(geography = "tract", variables = variables, year = 2020, 
+                   survey = "acs5", state = 06, county = 037, geometry = TRUE,output = "wide") %>% 
+  select(-matches("M$"))
+acs2015 <- get_acs(geography = "tract", variables = variables, year = 2015, 
+                   survey = "acs5", state = 06, county = 037, geometry = TRUE,output = "wide") %>% 
+  select(-matches("M$"))
+
+# Drop geometry for joining data on attributes
+acs2014_nogeom <- st_drop_geometry(acs2014)
+acs2020_nogeom <- st_drop_geometry(acs2020)
+acs2015_nogeom <- st_drop_geometry(acs2015)
+
+acs2014_nogeom <- acs2014_nogeom %>%
+  rename_with(~paste0(., ".2014"), matches("^med_income|^total_bachelors|^med_home_value"))
+
+acs2020_nogeom <- acs2020_nogeom %>%
+  rename_with(~paste0(., ".2020"), matches("^med_income|^total_bachelors|^med_home_value"))
+acs2015_nogeom <- acs2015_nogeom %>%
+  rename_with(~paste0(., ".2015"), matches("^med_income|^total_bachelors|^med_home_value"))
+
+gentrified_data <- left_join(acs2014_nogeom, acs2020_nogeom, by = "GEOID") %>%
+  left_join(acs2015_nogeom, by = "GEOID")
+gentrified_data <- gentrified_data %>%
+  mutate(
+    income_change_2020_2015 = (`med_income.2020` - `med_income.2015`) / `med_income.2015` * 100,
+    education_change_2020_2015 = (`total_bachelors.2020` - `total_bachelors.2015`) / `total_bachelors.2015` * 100,
+    home_value_change_2020_2015 = (`med_home_value.2020` - `med_home_value.2015`) / `med_home_value.2015` * 100,) %>% 
+  select(-matches("^NAME"))
+   
+# Convert it back
+gentrified_data_sf <- st_as_sf(gentrified_data, geometry = st_geometry(acs2014), crs = st_crs(acs2014))
+
+```
+
+
+
+``` {r testing}
+library(dplyr)
+
+# Assuming data_sf is already loaded and contains the necessary columns
+
+# Calculate thresholds for 2009
+thresholds_2014 <- gentrified_data_sf %>%
+  summarise(
+    threshold_home_value_2014 = quantile(med_home_value.2014, 0.4, na.rm = TRUE),
+    threshold_income_2014 = quantile(med_income.2014, 0.4, na.rm = TRUE)
+  )
+
+# Convert thresholds to a simpler format if needed (depending on the context)
+thresholds_2014 <- as.data.frame(thresholds_2014)
+
+# Define eligibility in 2009 based on population, home value, and income
+eligible_tracts <- gentrified_data_sf %>%
+  filter(#population.2009 > 500,
+         med_home_value.2014 < thresholds_2014$threshold_home_value_2014,
+         med_income.2014 < thresholds_2014$threshold_income_2014)
+
+# Calculate changes from 2010 to 2015
+changes_2020_2015 <- eligible_tracts %>%
+  mutate(
+    home_value_change = med_home_value.2020 - med_home_value.2015,
+    income_change = med_income.2020 - med_income.2015,
+    education_change = total_bachelors.2020 - total_bachelors.2015
+  )
+
+# Calculate 60th percentile changes as new thresholds for changes
+thresholds_2015 <- changes_2020_2015 %>%
+  summarise(
+    top_40th_home_value_change = quantile(home_value_change, 0.4, na.rm = TRUE),
+    top_40th_income_change = quantile(income_change, 0.4, na.rm = TRUE),
+    top_40th_education_change = quantile(education_change, 0.4, na.rm = TRUE)
+  )
+
+# Convert to a simpler format
+thresholds_2015 <- as.data.frame(thresholds_2015)
+
+# Apply change criteria for 2010-2015
+gentrified_tracts <- changes_2020_2015 %>%
+  filter(home_value_change > thresholds_2015$top_40th_home_value_change,
+         #home_value_change >0,
+         income_change > thresholds_2015$top_40th_income_change,
+         education_change > thresholds_2015$top_40th_education_change)
+
+# Mapping the results
+ggplot(gentrified_tracts) +
+  geom_sf(fill = "blue", color = "black") +
+  labs(title = "Gentrified Areas in 2020",
+       subtitle = "Tracts meeting all criteria for significant changes") +
+  theme_minimal()
+
+
+# Switch to your own path, Xia and Jiahang!
+la_city_boundary <- st_read('/Users/georgechen/Downloads/CityBoundaryofLosAngeles.geojson') %>%
+    st_transform(st_crs(data_sf))
+
+
+
+# THIS IS THE DATASET!!!!!!!!!
+gentrified_tracts_LA <- st_intersection(gentrified_tracts, la_city_boundary)
+
+
+
+
+
+
+LA_city_count <- st_intersection(acs2010, la_city_boundary)
+ggplot() +
+  geom_sf(data = la_city_boundary, fill = "grey80", color = "black", size = 0.2, alpha = 0.5) +
+  geom_sf(data = gentrified_tracts_LA, fill = "blue", color = "black", size = 0.5, alpha = 0.8) +
+  labs(
+    title = "Gentrified Areas in LA City, 2020",
+    subtitle = "Tracts meeting all criteria for significant changes"
+  ) +
+  theme_minimal()
+
+# Need Spatial Join by geometry or join by GEOID
+```
+
+```{r}
+
+
+
+# labor force: B16010_041
+# empolymentL:B23006_023
+# Define variables for ACS data retrieval
+
+variables <- c(med_income = "B19013_001E",  # Median household income
+               total_bachelors = "B16010_041E",  # with Bachelor's degree or higher
+               med_home_value = "B25077_001E")  # Median home value
+
+# variables_2009 <- c(med_income = "B19013_001E",  # Median household income
+#                # % with Bachelor's degree or higher
+#                med_home_value = "B25077_001E",
+#                whitealone_male = 'C15002H_006E',
+#                whitealone_female = 'C15002H_011E',
+#                black_male = 'C15002B_006E',
+#                black_female = 'C15002B_011E',
+#                Indian_male = 'C15002C_006E',
+#                Indian_female = 'C15002C_011E',
+#                Asian_male = 'C15002D_006E',
+#                Asian_female = 'C15002D_011E',
+#                Hawaiian_male = 'C15002E_006E',
+#                Hawaiian_female = 'C15002E_011E',
+#                other_male = 'C15002F_006E',
+#                other_female = 'C15002F_011E',
+#                two_male = 'C15002G_006E',
+#                two_female = 'C15002G_011E',
+#                hispanic_male = 'C15002I_006E',
+#                hispanic_female = 'C15002I_011E'
+#                ) 
+
+
+
+# Fetch ACS data for 2010 and 2015
+acs2014_chicago <- get_acs(geography = "tract", variables = variables, year = 2014, 
+                   survey = "acs5", state = 17, county = 031, geometry = TRUE,output = "wide") 
+# %>% 
+#   select(-matches("M$")) %>% 
+#   mutate(total_bachelors = whitealone_male + whitealone_female +
+#                             black_male + black_female +
+#                             Indian_male + Indian_female +
+#                             Asian_male + Asian_female +
+#                             Hawaiian_male + Hawaiian_female +
+#                             other_male + other_female +
+#                             two_male + two_female +
+#                             hispanic_male + hispanic_female) %>%
+#   select(
+#     -whitealone_male, -whitealone_female,
+#     -black_male, -black_female,
+#     -Indian_male, -Indian_female,
+#     -Asian_male, -Asian_female,
+#     -Hawaiian_male, -Hawaiian_female,
+#     -other_male, -other_female,
+#     -two_male, -two_female,
+#     -hispanic_male, -hispanic_female
+#   )
+  
+
+acs2020_chicago <- get_acs(geography = "tract", variables = variables, year = 2020, 
+                   survey = "acs5", state = 17, county = 031, geometry = TRUE,output = "wide") %>% 
+  select(-matches("M$"))
+acs2015_chicago <- get_acs(geography = "tract", variables = variables, year = 2015, 
+                   survey = "acs5", state = 17, county = 031, geometry = TRUE,output = "wide") %>% 
+  select(-matches("M$"))
+
+# Drop geometry for joining data on attributes
+acs2014_nogeom_chicago <- st_drop_geometry(acs2014_chicago)
+acs2020_nogeom_chicago <- st_drop_geometry(acs2020_chicago)
+acs2015_nogeom_chicago <- st_drop_geometry(acs2015_chicago)
+
+acs2014_nogeom_chicago <- acs2014_nogeom_chicago %>%
+  rename_with(~paste0(., ".2014"), matches("^med_income|^total_bachelors|^med_home_value"))
+
+acs2020_nogeom_chicago <- acs2020_nogeom_chicago %>%
+  rename_with(~paste0(., ".2020"), matches("^med_income|^total_bachelors|^med_home_value"))
+acs2015_nogeom_chicago <- acs2015_nogeom_chicago %>%
+  rename_with(~paste0(., ".2015"), matches("^med_income|^total_bachelors|^med_home_value"))
+
+gentrified_data_chicago <- left_join(acs2014_nogeom_chicago, acs2020_nogeom_chicago, by = "GEOID") %>%
+  left_join(acs2015_nogeom_chicago, by = "GEOID")
+gentrified_data_chicago <- gentrified_data_chicago %>%
+  mutate(
+    income_change_2020_2015_chicago = (`med_income.2020` - `med_income.2015`) / `med_income.2015` * 100,
+    education_change_2020_2015_chicago = (`total_bachelors.2020` - `total_bachelors.2015`) / `total_bachelors.2015` * 100,
+    home_value_change_2020_2015_chicago = (`med_home_value.2020` - `med_home_value.2015`) / `med_home_value.2015` * 100,) %>% 
+  select(-matches("^NAME"))
+   
+# Convert it back
+gentrified_data_sf_chicago <- st_as_sf(gentrified_data_chicago, geometry = st_geometry(acs2014_chicago), crs = st_crs(acs2014_chicago))
+
+
+```
+
+```{r}
+thresholds_2014_chicago <- gentrified_data_sf_chicago %>%
+  summarise(
+    threshold_home_value_2014_chicago = quantile(med_home_value.2014, 0.4, na.rm = TRUE),
+    threshold_income_2014_chicago = quantile(med_income.2014, 0.4, na.rm = TRUE)
+  )
+
+# Convert thresholds to a simpler format if needed (depending on the context)
+thresholds_2014_chicago <- as.data.frame(thresholds_2014_chicago)
+
+# Define eligibility in 2009 based on population, home value, and income
+eligible_tracts_chicago <- gentrified_data_sf_chicago %>%
+  filter(#population.2009 > 500,
+         med_home_value.2014 < thresholds_2014_chicago$threshold_home_value_2014_chicago,
+         med_income.2014 < thresholds_2014_chicago$threshold_income_2014_chicago)
+
+# Calculate changes from 2010 to 2015
+changes_2020_2015_chicago <- eligible_tracts_chicago %>%
+  mutate(
+    home_value_change_chicago = med_home_value.2020 - med_home_value.2015,
+    income_change_chicago = med_income.2020 - med_income.2015,
+    education_change_chicago = total_bachelors.2020 - total_bachelors.2015
+  )
+
+# Calculate 60th percentile changes as new thresholds for changes
+thresholds_2015_chicago <- changes_2020_2015_chicago %>%
+  summarise(
+    top_40th_home_value_change_chicago = quantile(home_value_change_chicago, 0.4, na.rm = TRUE),
+    top_40th_income_change_chicago = quantile(income_change_chicago, 0.4, na.rm = TRUE),
+    top_40th_education_change_chicago = quantile(education_change_chicago, 0.4, na.rm = TRUE)
+  )
+
+# Convert to a simpler format
+thresholds_2015_chicago <- as.data.frame(thresholds_2015_chicago)
+
+# Apply change criteria for 2010-2015
+gentrified_tracts_chicago <- changes_2020_2015_chicago %>%
+  filter(home_value_change_chicago > thresholds_2015_chicago$top_40th_home_value_change_chicago,
+         #home_value_change >0,
+         income_change_chicago > thresholds_2015_chicago$top_40th_income_change_chicago,
+         education_change_chicago > thresholds_2015_chicago$top_40th_education_change_chicago)
+
+# Mapping the results
+ggplot(gentrified_tracts_chicago) +
+  geom_sf(fill = "blue", color = "black") +
+  labs(title = "Gentrified Areas in 2020",
+       subtitle = "Tracts meeting all criteria for significant changes") +
+  theme_minimal()
+
+
+# Switch to your own path, Xia and Jiahang!
+chicago_city_boundary <-   st_read(file.path(root.dir, "/Chapter5/chicagoBoundary.geojson")) %>%  # Read Chicago boundary data
+  st_transform(st_crs(acs2014_chicago)) 
+
+
+
+
+# THIS IS THE DATASET!!!!!!!!!
+gentrified_tracts_chicago <- st_intersection(gentrified_tracts_chicago, chicago_city_boundary)
+
+
+
+ggplot() +
+  geom_sf(data = chicago_city_boundary, fill = "grey80", color = "black", size = 0.2, alpha = 0.5) +
+  geom_sf(data = gentrified_tracts_chicago, fill = "blue", color = "black", size = 0.5, alpha = 0.8) +
+  labs(
+    title = "Gentrified Areas in Chicago, 2020",
+    subtitle = "Tracts meeting all criteria for significant changes"
+  ) +
+  theme_minimal()
+
+
+
+
+
+
+```
+
+
