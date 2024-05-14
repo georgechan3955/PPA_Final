@@ -1,6 +1,6 @@
 ---
-title: "Measuring Gentrification - A Study in Boston"
-author: "Xiayuanshan Gao"
+title: "Gentrification Prediction Model for the City of Los Angeles"
+author: "George Chen, Jiahang Li, Xiayuanshan Gao"
 date: "2024-05-07"
 output: 
   html_document:
@@ -17,7 +17,7 @@ editor_options:
 
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(message = FALSE, warning = FALSE, echo = FALSE,cache=FALSE)
+knitr::opts_chunk$set(message = FALSE, warning = FALSE, echo = FALSE,cache=TRUE)
 
 options(scipen=999)
 ```
@@ -59,20 +59,21 @@ palette2 <- c("#7892B5","#D98481")
 
 ```
 
-# Intro
+# Introduction
 
+
+Predicting and managing urban gentrification is increasingly crucial for city planners and policymakers aiming to balance economic growth with community sustainability. This report introduces  a predictive model for gentrification, focusing on its application on  identifying areas at risk within Los Angeles City. The project leverages spatial and census data from 2015 to 2020 for the City of Los Angeles, integrating key metrics such as property values, demographic shifts, and local amenities to construct a robust model of urban transformation.  
 
 # Data Collection
 
-
+Our project tests a combination of spatial and non-spatial data to construct a comprehensive predictive model of gentrification in Los Angeles. The spatial data encompasses geographical boundaries of census tracts, locations of amenities such as grocery stores, restaurants, educational facilities, and transit stations. Non-spatial data comprises demographic and socioeconomic variables derived from the American Community Survey (2015-2020), which include population density, age distribution, ethnic composition, income levels, education levels, housing characteristics, and migration patterns.
 
 
 ## Spatial Data
 
-## Metro Stations
+### Metro Station
 
-
-```{r}
+```{r cache = TRUE, message = FALSE, warning = FALSE,results='hide'}
 
 # Reading neighborhood boundaries GeoJSON from the raw GitHub URL and transforming CRS
 boundary <- st_read("CityBoundaryofLosAngeles.geojson")%>%
@@ -84,6 +85,7 @@ metro <-
 ```
 
 ### Grocery store
+
 ```{r}
 grocerystore <- read.socrata("https://data.lacity.org/resource/g986-7yf9.json")
 
@@ -96,8 +98,8 @@ grocerystore <- grocerystore %>%
 ```
 
 
-
 ### Restaurant
+
 ```{r}
 
 restaurant <- read.socrata("https://data.lacity.org/resource/ieer-tbdq.json")
@@ -111,6 +113,7 @@ st_transform('ESRI:102645')
 ```
 
 ### Education Facities
+
 ```{r cache = TRUE, message = FALSE, warning = FALSE,results='hide'}
 educationfacilities <- 
  st_read("https://services.arcgis.com/RmCCgQtiZLDCtblq/arcgis/rest/services/Schools_Colleges_and_Universities/FeatureServer/0/query?outFields=*&where=1%3D1&f=geojson") 
@@ -121,6 +124,8 @@ dplyr::select(Y = latitude, X = longitude) %>%
   st_as_sf(coords = c("X", "Y"), crs = 4326, agr = "constant")%>%  # Transforming to the specified CRS
   st_transform('ESRI:102645')
 ```
+
+### Crime Data 2015 and 2020
 
 ```{r}
 
@@ -146,7 +151,10 @@ crime2020 <-
 ```
 
 
-## Census Data 2015 and 2020
+### Census Data 2015 and 2020
+
+As current studies mentioned the impact of historical racial segregation (Hwang & Sampson, 2014) and migration (Hwang et al., 2015) on gentrification, we give attention to white and minority household ownership proportions and migration rates. We also consider more demographic variables referencing the study of DeVylder et al. (2019), including gender, age group, annual household income, and education level. We refined the raw census data to calculate percentage representations for critical metrics. This normalization allows us to assess gentrification impacts relative to the total population per tract, ensuring comparability across diverse geographic regions. Changes in key socioeconomic indicators over time (2015-2020) were computed to capture the dynamics of gentrification. These include changes in poverty levels, educational attainment, and racial demographics. 
+
 
 ```{r cache = TRUE, message = FALSE, warning = FALSE,results='hide'}
 
@@ -331,7 +339,25 @@ acs_la20 <- acs_la20 %>%
 
 # Measuring Gentrification
 
-```{r cars_LA}
+
+In our study, we adopted a refined approach to measuring gentrification, drawing upon the methodologies described in prior research, particularly from the National Community Reinvestment Coalition (NCRC) guidelines. Our primary aim was to identify census tracts that underwent significant socio-economic changes indicative of gentrification. To this end, we set criteria based on changes observed from 2015 to 2020, utilizing the American Community Survey (ACS) five-year data sets.
+
+The criteria for defining a tract as gentrified were based on several key indicators:
+
+**Population Eligibility**: Originally, tracts with a population greater than 500 were considered to be eligible tracts for further analysis, but in order to capture all information from the census tract data, we decided to use all tracts instead of the tracts with a population greater than 500 based on the 2014. Eligible tracts would also fit the following criteria in order to be included for further analysis: Median Home Value < 40th percentile and Median Household income < 40th percentile.
+
+**Socioeconomic Indicators**: We assessed changes in median home values, median household income, and the percentage of residents with a college education. A tract was considered at risk of gentrification if it experienced: 
+An increase in median home value and median household income greater than the 40th percentile citywide, rather than the 60th percentile as outlined in the original NCRC model. This adjustment was made to capture more subtle yet significant shifts that may not reach the higher threshold but still represent meaningful change.
+An increase in the proportion of college-educated residents, also above the 40th percentile, to reflect educational gentrification.
+
+**Metropolitan level Comparison**: All data was loaded, calculated, and filtered in the Metropolitan level scale instead of trimming to the city area at the beginning and operating in the city scale, which would allow the gentrification identification to be more accurate, reflecting the gentrification trend in the ambient tracts.
+
+Tracts based on 2020 census information meeting these criterias were classified as 'gentrified' (1) and all others as 'non-gentrified' (0).  This methodological approach helps pinpoint the tracts most affected by gentrification based on significant socio-economic transformations. By lowering the percentile threshold for income and home value increases, we include areas undergoing earlier stages of gentrification, which are crucial for timely policy interventions.
+
+
+
+
+```{r cache = TRUE, message = FALSE, warning = FALSE,results='hide'}
 
 library(tidycensus)
 library(dplyr)
@@ -394,7 +420,8 @@ gentrified_data_sf <- st_as_sf(gentrified_data, geometry = st_geometry(acs2014),
 
 
 
-``` {r testing}
+```{r cache = TRUE, message = FALSE, warning = FALSE}
+
 # Assuming data_sf is already loaded and contains the necessary columns
 
 # Calculate thresholds for 2009
@@ -470,9 +497,11 @@ ggplot(gentrified_tracts_LA) +
 
 # Feature Engineering
 
-## identify change in census
+## Census data
 
-```{r}
+As current studies mentioned the impact of historical racial segregation (Hwang & Sampson, 2014) and migration (Hwang et al., 2015) on gentrification, we give attention to white and minority household ownership proportions and migration rates. We also consider more demographic variables referencing the study of DeVylder et al. (2019), including gender, age group, annual household income, and education level. We refined the raw census data to calculate percentage representations for critical metrics. This normalization allows us to assess gentrification impacts relative to the total population per tract, ensuring comparability across diverse geographic regions. Changes in key socioeconomic indicators over time (2015-2020) were computed to capture the dynamics of gentrification. These include changes in poverty levels, educational attainment, and racial demographics.
+
+```{r cache = TRUE, message = FALSE, warning = FALSE,results='hide'}
 library(sf)
 library(dplyr)
 
@@ -532,7 +561,13 @@ tractclippednew <- tractclippednew  %>%
 ```
 
 
-## identify number of grocery stores in each tract
+
+## Amenity Accessibility
+
+We conducted spatial joins between census tracts and points of interest to count the number of amenities within each tract. This process included grocery stores, housing permits (indicative of development activity), restaurants, and educational facilities, providing a lens into the changing infrastructural landscape which often accompanies or signals gentrification.
+
+
+### identify number of grocery stores in each tract
 
 ```{r}
 grocerystorepoint <- grocerystore %>%
@@ -552,7 +587,7 @@ gentrifydata <- left_join(tractclippednew, grocerystorenumber )
 
 
 
-## identify number of restaurants in each tract
+### identify number of restaurants in each tract
 
 
 ```{r}
@@ -571,7 +606,7 @@ gentrifydata <- left_join(gentrifydata, restaurantnumber )
 
 ```
 
-## identify number of education facilities in each tract
+### identify number of education facilities in each tract
 
 ```{r}
 
@@ -588,58 +623,9 @@ educationfacilitiesnumber <- st_set_geometry(educationfacilitiesnumber, NULL)
 ```
 
 
-# Exploratory Analysis - Gentrification
-
-## Numeric Variables
-The following figures are bar charts that represents numeric variables within the dataset.
-```{r cache = TRUE, warning = FALSE, message = FALSE,fig.width=10, fig.height=10}
-
-gentrifydataplot <- st_set_geometry(gentrifydata, NULL)%>%
-na.omit() 
-
-# Convert 'gentrification' to a factor with levels that are valid R variable names
-gentrifydataplot$gentrification <- factor(gentrifydataplot$gentrification, levels = c(0, 1), labels = c("No", "Yes"))
-numeric_var <- gentrifydataplot %>% 
-  select(gentrification, changeinpoverty,changeinbachelor, changeinwhite,pctBachelors20,changein2544,houseprice20,rent,rent20,changeinhouseprice,newhousingunit, incomeChange, ForMig_Change, Density_Change)
-
-
-numeric_var %>%
-  gather(Variable, value, -gentrification) %>%
-    ggplot(aes(gentrification, value, fill=gentrification)) + 
-      geom_bar(position = "dodge", stat = "summary", fun = "mean") + 
-      facet_wrap(~Variable, scales = "free", ncol = 4, labeller= labeller(Variable = c(
-                     `changeinpoverty` = "Change in Poverty from 2015 to 2020",
-                     `changeinbachelor` = "Change in percent of people with at least a bachelor degree",
-                     `changeinwhite` = "Change in percent of people with at least a bachelor degree
-",
-                     `pctBachelors20` = "Percent of people with at least a bachelor's degree in 2020",
-                     `changein2544` = "Change in population aged from 25 to 44 per tract",
-                     `houseprice20`= "Median house price per tract in 2020",
-                      rent= "Median rent price per tract in 2015",
-                     rent20= "Median rent price per tract in 2020",
-                     changeinhouseprice= "Change in median house price per tract",
-                     newhousingunit= "new housing units", 
-                     incomeChange= "Income change from 2015 to 2020",
-                     ForMig_Change= " Change in percentage of migration",
-                     Density_Change= "Change in population density"))) +
-      scale_fill_manual(values = palette2) +
-      labs(x="gentrification", y="Value", 
-           title = "Feature Associations with the Likelihood of gentrification",
-           subtitle = "Numeric features") +
-      theme(legend.position = "none") +
-    theme(plot.subtitle = element_text(size = 12,face = "italic"),
-        plot.title = element_text(size = 18, face = "bold"), 
-        axis.text.x=element_text(size=10),
-        axis.text.y=element_text(size=10), 
-        axis.title=element_text(size=5), 
-        panel.background = element_blank(),
-        panel.border = element_rect(colour = "grey", fill=NA, linewidth =0.8))
-```
-
-
-
 ## Visualizing amenity patterns
 
+We conducted spatial joins between census tracts and points of interest to count the number of amenities within each tract. This process included grocery stores, housing permits (indicative of development activity), restaurants, and educational facilities, providing a lens into the changing infrastructural landscape which often accompanies or signals gentrification.
 
 ```{r}
 library(ggplot2)
@@ -690,7 +676,76 @@ wrap_plots(
 ```
 
 
-## Crime by Tract
+
+
+# Exploratory Analysis - Gentrification
+
+## Numeric Variables
+
+The following figures are bar charts that represents the mean value of numeric variables within the dataset.
+
+```{r cache = TRUE, warning = FALSE, message = FALSE,fig.width=10, fig.height=10}
+
+gentrifydataplot <- st_set_geometry(gentrifydata, NULL)%>%
+na.omit() 
+
+# Convert 'gentrification' to a factor with levels that are valid R variable names
+gentrifydataplot$gentrification <- factor(gentrifydataplot$gentrification, levels = c(0, 1), labels = c("No", "Yes"))
+numeric_var <- gentrifydataplot %>% 
+  select(gentrification, changeinpoverty,changeinbachelor, changeinwhite,pctBachelors20,changein2544,houseprice20,rent,rent20,changeinhouseprice,newhousingunit, incomeChange, ForMig_Change, Density_Change)
+
+
+numeric_var %>%
+  gather(Variable, value, -gentrification) %>%
+  ggplot(aes(gentrification, value, fill=gentrification)) + 
+    geom_bar(position = "dodge", stat = "summary", fun = "mean") + 
+    facet_wrap(~Variable, scales = "free", ncol = 4) +
+    scale_fill_manual(values = palette2) +
+    labs(x = "Gentrification", y = "Value", 
+         title = "Feature Associations with the Likelihood of Gentrification",
+         subtitle = "Numeric Features") +
+    theme(legend.position = "none",
+          plot.subtitle = element_text(size = 12, face = "italic"),
+          plot.title = element_text(size = 18, face = "bold"), 
+          axis.text.x = element_text(size = 10),
+          axis.text.y = element_text(size = 10), 
+          axis.title = element_text(size = 12), 
+          panel.background = element_blank(),
+          panel.border = element_rect(colour = "grey", fill = NA, linewidth = 0.8))
+
+
+```
+
+```{r fig.height=10, fig.width=16, message=FALSE, warning=FALSE, cache=TRUE}
+numeric_var %>%
+    gather(Variable, value, -gentrification) %>%
+    ggplot() + 
+    geom_density(aes(value, color=gentrification), fill = "transparent") + 
+   facet_wrap(~Variable, scales = "free", ncol = 4) +
+  scale_color_manual(values = palette2) +
+    labs(title = "Feature Distributions Based on Recidivism",
+         subtitle = "Continous features") +
+  theme(plot.subtitle = element_text(size = 12,face = "italic"),
+        plot.title = element_text(size = 18, face = "bold"), 
+        axis.text.x=element_text(size=9),
+        axis.text.y=element_text(size=9), 
+        axis.title=element_text(size=9), 
+        panel.background = element_blank(),
+        panel.border = element_rect(colour = "grey", fill=NA, linewidth =0.8))
+```
+
+
+
+
+
+
+
+
+
+## Crime Data Integration
+
+To understand the relationship between safety and gentrification, we compiled crime statistics for 2015 and 2020, calculating changes over time to discern any correlations between gentrification and crime rates. The following maps illustrate the change in crime density across Los Angeles from 2015 to 2020, it can be observed a decrease in crime density in the upper town area within the tracts with relatively high crime numbers per tract. This rich dataset allows for a nuanced analysis of how various factors contribute to or are affected by gentrification, providing city planners with actionable insights into urban development processes.
+
 
 ```{r}
 crime2015point <- crime2015 %>%
@@ -753,8 +808,46 @@ ggsave("crime.png", plot = crime_plots, bg = "transparent", width = 10, height =
 
 
 # Logistic regression
+
+As we measured gentrification with binary classification, we chose logistic regression to predict gentrification in Los Angeles because it effectively models the probability of each census tract becoming gentrified based on socio-economic and demographic predictors. We finally involved a list of demographic and socio-economic predictors, include:
+
+* **gentrification:** An index using 0 and 1 to indicate whether a tract has gentrified. 0 for no and 1 for yes.
+
+* **incomeChange: ** income change from 2015 to 2020
+
+* **changeinpovwerty:** Change in percentage of poverty from 2015 to 2020
+
+* **ForMig_Change:** Change in percentage of migration from 2015 to 2020
+
+* **changeinbachelor: **Change in percentage of people with at least a bachelor degree from 2015 to 2020
+
+* **housingprice20:** Median rent price per tract in 2020
+
+* **changeinhouseprice:** Change in median house price per tract from 2015 to 2020
+
+* **changein2544: ** Change in population aged from 25 to 44 per tract  from 2015 to 2020
+
+* **rent20:** Median rent price per tract in 2020
+
+* **rent:** Median rent price per tract in 2015
+
+* **changeinwhite:** Change in percentage of people with at least a bachelor degree
+
+* **pctBachelors20:** Percentage of people with at least a bachelor's degree in 2020
+
+* **newhousingunit:**  new housing units from 2015 to 2020
+
+* **Race:** the racial context
+
+* **crimeChange:** Crime change number between 2015 and 2020. 
+
+* **Density_Change:** Change in population density between 2015 and 2020
+
+While TOD and amenity features don’t contribute well to the model accuracy so we dropped them in the end.
+
+
 ```{r cache = TRUE, message = FALSE, warning = FALSE,results='hide'}
-colnames(gentrifydata)
+#colnames(gentrifydata)
 ```
 
 ## Modeling building
@@ -810,6 +903,8 @@ kable(coefficients_table %>% select(-significance, -`Pr(>|z|)`), align = "r") %>
 summary(gentrifyModel)
 ```
 
+The model has a McFadden score of 0.48, suggesting a good prediction performance. 
+
 ```{r}
 library(pscl)
 library(plotROC)
@@ -825,7 +920,7 @@ head(testProbs)
 ```
 
 
-
+We can see that our model is better at prediciting the negatives rather than the positives. 
 
 ```{r}
 ggplot(testProbs, aes(x = Probs, fill = as.factor(Outcome))) + 
@@ -840,15 +935,20 @@ ggplot(testProbs, aes(x = Probs, fill = as.factor(Outcome))) +
 
 ## Confusion matrix
 
+The Confusion Matrix shows the number of observed instances of tracts gentrified. Each entry in the matrix provides a different comparison between observed and predicted, given the 15% threshold. The overall accuracy is 80%, which is acceptable. 
+
 ```{r}
 testProbs <- 
   testProbs %>%
-  mutate(predOutcome  = as.factor(ifelse(testProbs$Probs > 0.12 , 1, 0)))
+  mutate(predOutcome  = as.factor(ifelse(testProbs$Probs > 0.15 , 1, 0)))
 
 caret::confusionMatrix(testProbs$predOutcome, testProbs$Outcome, 
-                       positive = "0")
+                       positive = "1")
 ```
 
+## ROC Curve
+
+The AUC curve for our model is .83, proposing that we have a strong model with the feature engineered variables.
 
 ```{r}
 ggplot(testProbs, aes(d = as.numeric(testProbs$Outcome), m = Probs)) +
@@ -881,7 +981,7 @@ levels(gentrifydata_clean$gentrification)
 
 customSummary <- function(data, lev = NULL, model = NULL) {
   # Assuming the positive class is labeled as 'True'
-  prob <- ifelse(data[, "true"] >= 0.1, lev[2], lev[1])
+  prob <- ifelse(data[, "true"] >= 0.15, lev[2], lev[1])
   
   # Convert probabilities to factors with levels as per the actual outcomes
   prob <- factor(prob, levels = lev)
@@ -920,8 +1020,7 @@ print(cvFit)
 ```
 
 
-The figure below plots the distribution of AUC, Sensitivity, and Specificity across the 100 folds. The tighter each distribution is to its mean, the more generalizable the model. Based on the result, our model generalizes well to ROC, sensitivity and specificity. To be more specific, our model generalizes well with respect to the rate it correctly predicts No_recidivism and recidivism. Our model is consistent in how it predicts the outcome,recidivism.
-
+The figure below plots the distribution of AUC, Sensitivity, and Specificity across the 100 folds. The tighter each distribution is to its mean, the more generalizable the model. Based on the result, our model generalizes well to ROC and sensitivity. 
 
 
 ```{r}
@@ -942,6 +1041,8 @@ dplyr::select(cvFit$resample, -Resample) %>%
 
 
 ## Generalizability under Racial Context
+
+We further examined the generalizability of the model under the racial context. There are more dominantly minority population tracts that got gentrified between 2015 and 2020 than the tracts with dominantly white populations. Our model has higher accuracy when predicting the dominantly white census tracts, especially when identifying the tracts that are not at the risk of gentrification, while this model performs better in correctly predicting the minority tracts that are at gentrification risk. However, this model generally over-predicts for both dominantly white and minority census tracts.
 
 
 ```{r}
@@ -1062,21 +1163,6 @@ iterateThresholds <- function(data, observedClass, predictedProbs, group) {
 
 
 
-```{r}
-testProbs_race.thresholds <- 
-  iterateThresholds(data=testProbs_race, observedClass = class, 
-                    predictedProbs = probs, group = Race)
-
-filter(testProbs_race.thresholds, Threshold == .3)  %>%
-  dplyr::select(Accuracy, Race, starts_with("Rate")) %>%
-  gather(Variable, Value, -Race) %>%
-    ggplot(aes(Variable, Value, fill = Race)) +
-      geom_bar(aes(fill = Race), position = "dodge", stat = "identity") +
-      scale_fill_manual(values = palette2) +
-      labs(title="Confusion matrix rates by race",
-           subtitle = "10% threshold", x = "Outcome",y = "Rate") +
-      theme_minimal() + theme(axis.text.x = element_text(angle = 0, hjust = 1)) 
-```
 
 
 ```{r}
@@ -1127,12 +1213,19 @@ print(ggroc_combined)
 
 
 
-
-
-
-
-
 # Validation on Chicago
+
+
+The validation of our predictive model using Chicago's data, spanning the same years as the Los Angeles dataset, serves as a strategic choice to test the model's applicability and robustness across different urban settings. Choosing Chicago for validating our gentrification model developed from Los Angeles data is predicated on several factors:
+
+* **Similar Urban Dynamics:** Both Chicago and Los Angeles are major metropolitan areas with diverse populations and significant economic disparities across different neighborhoods. 
+
+* **Prevalence of Gentrification:** Like Los Angeles, Chicago has experienced noticeable gentrification, particularly in neighborhoods close to the city center and along key transit routes. 
+
+* **Comprehensive Data Availability:** Chicago, similar to Los Angeles, has extensive data resources on demographics, urban infrastructure, and socio-economic indicators, which are crucial for a fair comparison and reliable validation of the predictive model.
+
+This approach helps ascertain the model's generalizability and accuracy in predicting gentrification beyond the initial city, ensuring that the model can potentially be adapted for various urban environments with similar underlying patterns of change. The result of this step of validation shows that the model 
+
 
 
 ```{r cache = TRUE, message = FALSE, warning = FALSE,results='hide'}
@@ -1212,8 +1305,6 @@ dplyr::select(geometry)
 #crime_data <- crime_data %>%
   #filter(!is.na(Longitude) & !is.na(Latitude))
 ```
-
-
 
 ## Loading census data
 
@@ -1432,7 +1523,9 @@ gentrified_data_sf_chicago <- st_as_sf(gentrified_data_chicago, geometry = st_ge
 
 ```
 
+
 ```{r cache = TRUE, message = FALSE, warning = FALSE,results='hide'}
+
 thresholds_2014_chicago <- gentrified_data_sf_chicago %>%
   summarise(
     threshold_home_value_2014_chicago = quantile(med_home_value.2014, 0.4, na.rm = TRUE),
@@ -1509,9 +1602,9 @@ ggplot() +
 
 ## Feature Engineering
 
-### identify change in census
+### Identify Changes in Census Data
 
-```{r}
+```{r cache = TRUE, message = FALSE, warning = FALSE,results='hide'}
 library(sf)
 library(dplyr)
 
@@ -1570,22 +1663,26 @@ tractclippednewchi <- tractclippednewchi  %>%
          Density_Change = popDensity20 - popDensity)
 ```
 
-### Calculate crime by Tract
+### Calculate Crime by Tracts
 
-```{r}
-crime2015_chi <- 
-    read.socrata("https://data.cityofchicago.org/Public-Safety/Crimes-2015/vwwp-7yr9") %>% 
-    dplyr::select(-Date, -Updated.On) %>%
-    mutate(x = gsub("[()]", "", Location)) %>%
-    separate(x,into= c("Y","X"), sep=",") %>%
-    mutate(X = as.numeric(X),Y = as.numeric(Y)) %>% 
-    na.omit() %>%
-    st_as_sf(coords = c("X", "Y"), crs = 4326, agr = "constant")%>%
-    st_transform('ESRI:102271') %>%  
-    distinct()
+```{r message=FALSE, warning=FALSE, cache=FALSE, include=FALSE, paged.print=FALSE, results='hide'}
+
+
+    crime2015_chi <- 
+      read.socrata("https://data.cityofchicago.org/Public-Safety/Crimes-2015/vwwp-7yr9") %>% 
+      dplyr::select(-Date, -Updated.On) %>%
+      mutate(x = gsub("[()]", "", Location)) %>%
+      separate(x, into = c("Y", "X"), sep = ",") %>%
+      mutate(X = as.numeric(X), Y = as.numeric(Y)) %>% 
+      na.omit() %>%
+      st_as_sf(coords = c("X", "Y"), crs = 4326, agr = "constant") %>%
+      st_transform('ESRI:102271') %>%
+      distinct()
+
+
 ```
 
-```{r}
+```{r message=FALSE, warning=FALSE, cache=FALSE, paged.print=FALSE, results='hide', include=FALSE}
 crime2020_chi <- 
     read.socrata("https://data.cityofchicago.org/Public-Safety/Crimes-2020/qzdf-xmn8") %>% 
     dplyr::select(-Date, -Updated.On) %>%
@@ -1637,13 +1734,6 @@ tractclippednewchi <- tractclippednewchi %>%
   mutate(crimeChangechi = crime2020countchi - crime2015countchi)
 
 ```
-
-
-
-```{r}
-colnames(tractclippednewchi)
-```
-
 
 
 ## Modeling building
@@ -1750,12 +1840,24 @@ ggplot(testProbs, aes(d = as.numeric(testProbs$Outcome), m = Probs)) +
 ```
 
 
-
 # Conclusion
 
+Based on the model, we have some recommendations for implementation:
 
 
+**1. Projecting Five-Year Scenarios**
+The model is calibrated to predict changes based on a five-year historical data pattern. Therefore, it is best suited for forecasting similar five-year future intervals. To leverage its predictive power effectively, we recommend utilizing it to project outcomes from 2020 to 2025, and similarly for subsequent five-year periods. This approach aligns the model's strengths with its intended application, ensuring relevance and accuracy in its predictions.
 
+**2. Regular Data Updates and community engagaement**
+For the model to remain effective, it is crucial to incorporate the latest data regularly. As urban demographics and economic conditions evolve, updating the dataset for the next five-year span (e.g., 2025 - 2030) as soon as new data becomes available will enable the model to capture emerging trends and shifts in urban development. This continuous updating process not only enhances the model’s accuracy but also maintains its relevance in dynamic urban planning contexts.
+
+**3. Model Customization for Highly Gentrified Cities**
+Cities that have undergone significant gentrification, such as New York, present unique challenges that may not be fully addressed by a general model. In these cases, it is advisable to develop specialized models that consider specific local factors and the saturation of gentrification effects. Such tailored models should focus on more granular aspects of change, such as shifts in micro-neighborhood demographics or the impact of policy changes, to provide useful insights for urban planners and policymakers.
+
+**4. Incorporating Localized Factors**
+Consider enhancing the model by integrating more localized factors that influence gentrification, such as zoning laws, public transportation developments, and economic incentives. This addition can improve the model's ability to forecast gentrification impacts more accurately within specific contexts.
+
+Introduce the predictive model as a state-of-the-art tool designed to identify and forecast gentrification trends within urban areas. Highlight that this model leverages both spatial and non-spatial data from the American Community Survey, covering demographic shifts and socio-economic changes from 2015 to 2020.I would recommend the city to invest in the development of this model to improve the distribution of socioeconomic resources.
 
 
 
