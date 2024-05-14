@@ -148,7 +148,6 @@ crime2020 <-
 ```
 
 
-## Census Data 2015 and 2020
 
 As current studies mentioned the impact of historical racial segregation (Hwang & Sampson, 2014) and migration (Hwang et al., 2015) on gentrification, we give attention to white and minority household ownership proportions and migration rates. We also consider more demographic variables referencing the study of DeVylder et al. (2019), including gender, age group, annual household income, and education level. We refined the raw census data to calculate percentage representations for critical metrics. This normalization allows us to assess gentrification impacts relative to the total population per tract, ensuring comparability across diverse geographic regions. Changes in key socioeconomic indicators over time (2015-2020) were computed to capture the dynamics of gentrification. These include changes in poverty levels, educational attainment, and racial demographics. 
 
@@ -890,7 +889,7 @@ coefficients_table$significance <- ifelse(coefficients_table$`Pr(>|z|)` < 0.001,
 # Print the table with formatting
 kable(coefficients_table %>% select(-significance, -`Pr(>|z|)`), align = "r") %>%
   kable_styling(bootstrap_options = c("striped", "hover", "condensed")) %>%
-  footnote(general_title = "\n", general = "Table 3")
+  footnote(general_title = "\n", general = "")
 summary(gentrifyModel)
 ```
 
@@ -1657,9 +1656,34 @@ tractclippednewchi <- tractclippednewchi  %>%
 ### Calculate Crime by Tracts
 
 ```{r message=FALSE, warning=FALSE, cache=FALSE, include=FALSE, paged.print=FALSE, results='hide'}
+library(dplyr)
+library(tidyverse)
+library(sf)
+library(spdep)
+library(caret)
+library(ckanr)
+library(FNN)
+library(grid)
+library(gridExtra)
+library(ggcorrplot) # plot correlation plot
+library(corrr)      # another way to plot correlation plot
+library(kableExtra)
+library(jtools)     # for regression model plots
+library(ggstance) # to support jtools plots
+library(ggpubr)    # plotting R^2 value on ggplot point scatter
+library(broom.mixed) # needed for effects plots
+library(RColorBrewer)
+library(RSocrata)
 
-
-    crime2015_chi <- 
+library(RSocrata)
+library(viridis)
+library(spatstat)
+library(spdep)
+library(FNN)
+library(knitr)
+library(kableExtra)
+library(tidycensus)
+crime2015_chi <- 
       read.socrata("https://data.cityofchicago.org/Public-Safety/Crimes-2015/vwwp-7yr9") %>% 
       dplyr::select(-Date, -Updated.On) %>%
       mutate(x = gsub("[()]", "", Location)) %>%
@@ -1775,7 +1799,7 @@ coefficients_table$significance <- ifelse(coefficients_table$`Pr(>|z|)` < 0.001,
 # Print the table with formatting
 kable(coefficients_table %>% select(-significance, -`Pr(>|z|)`), align = "r") %>%
   kable_styling(bootstrap_options = c("striped", "hover", "condensed")) %>%
-  footnote(general_title = "\n", general = "Table 3")
+  footnote(general_title = "\n", general = "")
 summary(gentrifyModelchi)
 ```
 
