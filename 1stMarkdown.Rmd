@@ -617,7 +617,6 @@ educationfacilitiesnumber <- st_set_geometry(educationfacilitiesnumber, NULL)
 
 ## Visualizing amenity patterns
 
-We conducted spatial joins between census tracts and points of interest to count the number of amenities within each tract. This process included grocery stores, housing permits (indicative of development activity), restaurants, and educational facilities, providing a lens into the changing infrastructural landscape which often accompanies or signals gentrification.
 
 ```{r}
 library(ggplot2)
