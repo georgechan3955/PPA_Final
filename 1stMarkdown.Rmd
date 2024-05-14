@@ -17,8 +17,12 @@ editor_options:
 
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(message = FALSE, warning = FALSE, echo = FALSE,cache = TRUE)
+knitr::opts_chunk$set(message = FALSE, warning = FALSE, echo = FALSE,cache=FALSE)
 
+options(scipen=999)
+```
+
+```{r}
 library(tidyverse)
 library(sf)
 library(spdep)
@@ -69,6 +73,7 @@ palette2 <- c("#7892B5","#D98481")
 
 
 ```{r}
+
 # Reading neighborhood boundaries GeoJSON from the raw GitHub URL and transforming CRS
 boundary <- st_read("CityBoundaryofLosAngeles.geojson")%>%
 st_transform('ESRI:102645')
@@ -94,6 +99,7 @@ grocerystore <- grocerystore %>%
 
 ### Restaurant
 ```{r}
+
 restaurant <- read.socrata("https://data.lacity.org/resource/ieer-tbdq.json")
 
 restaurant <- restaurant %>%
@@ -117,6 +123,7 @@ dplyr::select(Y = latitude, X = longitude) %>%
 ```
 
 ```{r}
+
 crime2015 <- 
   read.socrata("https://data.lacity.org/Public-Safety/Crime-Data-from-2010-to-2019/63jg-8b9z/") %>%
   mutate(year = substr(date_rptd,1,4)) %>% filter(year == "2015") %>%
@@ -142,6 +149,7 @@ crime2020 <-
 ## Census Data 2015 and 2020
 
 ```{r cache = TRUE, message = FALSE, warning = FALSE,results='hide'}
+
 
 census_api_key("f681592f0e7bc7e399e41102649c493ec7f7f574") 
 
@@ -264,6 +272,7 @@ acs_la <- acs_la %>%
 ```
 
 ```{r}
+
 acs_la20 <- acs_la20 %>%
   rename(totalPop20 = "B01001_001E",
   male20 = "B01001_002E",
@@ -386,7 +395,6 @@ gentrified_data_sf <- st_as_sf(gentrified_data, geometry = st_geometry(acs2014),
 
 
 ``` {r testing}
-
 # Assuming data_sf is already loaded and contains the necessary columns
 
 # Calculate thresholds for 2009
@@ -507,6 +515,7 @@ tractclippednew <- tractclippednew %>%
 ```
 
 ```{r}
+
 tractclippednew <- tractclippednew  %>%
   mutate(changeinpoverty = pctPoverty20 - pctPoverty,
          changeinbachelor = pctBachelors20 - pctBachelors,
@@ -548,6 +557,7 @@ gentrifydata <- left_join(tractclippednew, grocerystorenumber )
 
 ```{r}
 
+
 restaurantpoint <- restaurant %>%
   st_join(tractgeography, left = F)
 restaurantnumber <- restaurantpoint %>%
@@ -576,6 +586,56 @@ educationfacilitiesnumber <- st_set_geometry(educationfacilitiesnumber, NULL)
 
 
 ```
+
+
+# Exploratory Analysis - Gentrification
+
+## Numeric Variables
+The following figures are bar charts that represents numeric variables within the dataset.
+```{r cache = TRUE, warning = FALSE, message = FALSE,fig.width=10, fig.height=10}
+
+gentrifydataplot <- st_set_geometry(gentrifydata, NULL)%>%
+na.omit() 
+
+# Convert 'gentrification' to a factor with levels that are valid R variable names
+gentrifydataplot$gentrification <- factor(gentrifydataplot$gentrification, levels = c(0, 1), labels = c("No", "Yes"))
+numeric_var <- gentrifydataplot %>% 
+  select(gentrification, changeinpoverty,changeinbachelor, changeinwhite,pctBachelors20,changein2544,houseprice20,rent,rent20,changeinhouseprice,newhousingunit, incomeChange, ForMig_Change, Density_Change)
+
+
+numeric_var %>%
+  gather(Variable, value, -gentrification) %>%
+    ggplot(aes(gentrification, value, fill=gentrification)) + 
+      geom_bar(position = "dodge", stat = "summary", fun = "mean") + 
+      facet_wrap(~Variable, scales = "free", ncol = 4, labeller= labeller(Variable = c(
+                     `changeinpoverty` = "Change in Poverty from 2015 to 2020",
+                     `changeinbachelor` = "Change in percent of people with at least a bachelor degree",
+                     `changeinwhite` = "Change in percent of people with at least a bachelor degree
+",
+                     `pctBachelors20` = "Percent of people with at least a bachelor's degree in 2020",
+                     `changein2544` = "Change in population aged from 25 to 44 per tract",
+                     `houseprice20`= "Median house price per tract in 2020",
+                      rent= "Median rent price per tract in 2015",
+                     rent20= "Median rent price per tract in 2020",
+                     changeinhouseprice= "Change in median house price per tract",
+                     newhousingunit= "new housing units", 
+                     incomeChange= "Income change from 2015 to 2020",
+                     ForMig_Change= " Change in percentage of migration",
+                     Density_Change= "Change in population density"))) +
+      scale_fill_manual(values = palette2) +
+      labs(x="gentrification", y="Value", 
+           title = "Feature Associations with the Likelihood of gentrification",
+           subtitle = "Numeric features") +
+      theme(legend.position = "none") +
+    theme(plot.subtitle = element_text(size = 12,face = "italic"),
+        plot.title = element_text(size = 18, face = "bold"), 
+        axis.text.x=element_text(size=10),
+        axis.text.y=element_text(size=10), 
+        axis.title=element_text(size=5), 
+        panel.background = element_blank(),
+        panel.border = element_rect(colour = "grey", fill=NA, linewidth =0.8))
+```
+
 
 
 ## Visualizing amenity patterns
@@ -1157,7 +1217,7 @@ dplyr::select(geometry)
 
 ## Loading census data
 
-```{r}
+```{r cache = TRUE, message = FALSE, warning = FALSE,results='hide'}
 
 # Fetch the data for LA, LA County, CA,2015
 acs_chi <- get_acs(
@@ -1318,7 +1378,7 @@ tractchicagogeography <- tractchicagoclipped %>%
 
 ## Measuring Gentrification
 
-```{r cars}
+```{r cache = TRUE, message = FALSE, warning = FALSE,results='hide'}
 
 
 # Define variables for ACS data retrieval
@@ -1372,7 +1432,7 @@ gentrified_data_sf_chicago <- st_as_sf(gentrified_data_chicago, geometry = st_ge
 
 ```
 
-```{r}
+```{r cache = TRUE, message = FALSE, warning = FALSE,results='hide'}
 thresholds_2014_chicago <- gentrified_data_sf_chicago %>%
   summarise(
     threshold_home_value_2014_chicago = quantile(med_home_value.2014, 0.4, na.rm = TRUE),
@@ -1445,6 +1505,7 @@ ggplot() +
   theme_minimal()
 
 ```
+
 
 ## Feature Engineering
 
