@@ -104,8 +104,8 @@ st_transform('ESRI:102645')
 
 ```
 
-### educationfacities
-```{r}
+### Education Facities
+```{r cache = TRUE, message = FALSE, warning = FALSE,results='hide'}
 educationfacilities <- 
  st_read("https://services.arcgis.com/RmCCgQtiZLDCtblq/arcgis/rest/services/Schools_Colleges_and_Universities/FeatureServer/0/query?outFields=*&where=1%3D1&f=geojson") 
 
@@ -141,7 +141,7 @@ crime2020 <-
 
 ## Census Data 2015 and 2020
 
-```{r}
+```{r cache = TRUE, message = FALSE, warning = FALSE,results='hide'}
 
 census_api_key("f681592f0e7bc7e399e41102649c493ec7f7f574") 
 
@@ -587,11 +587,11 @@ library(patchwork)
 
 
 plot_school <- ggplot() +
-  geom_sf(data=gentrifydata,fill="transparent", color = "grey")+
   stat_density2d(data = data.frame(st_coordinates(educationfacilitiespoint)), 
                  aes(X, Y, fill = ..level.., alpha = ..level..),
                  size = 0.01, bins = 40, geom = 'polygon') +
   scale_fill_gradient(low='#7892B5', high='#fecc5c', name = "Density") +
+   geom_sf(data=gentrifydata,fill="transparent", color = "grey")+
   scale_alpha(range = c(0.00, 0.35), guide = FALSE) +
   labs(title="Density of education facilities")+
    theme_void()
@@ -693,9 +693,10 @@ ggsave("crime.png", plot = crime_plots, bg = "transparent", width = 10, height =
 
 
 # Logistic regression
-```{r}
+```{r cache = TRUE, message = FALSE, warning = FALSE,results='hide'}
 colnames(gentrifydata)
 ```
+
 ## Modeling building
 
 
@@ -756,7 +757,7 @@ library(pROC)
 pR2(gentrifyModel ) 
 ```
 
-Visually we now can begin comparing the predictions of recidivism. A negative or 0 value means that there is no recidivism, while a positive or 1 value means that there is recidivism. Strong models will have a peak closer to 0 for the negatives (no recidivism), and a peak closer to 1 for the positives (recidivism). In the following graph we can see that our model is better at prediciting the positives rather than the negatives.
+
 
 ```{r}
 testProbs <- data.frame(Outcome = as.factor(gentrifydataTest $gentrification), Probs = predict(gentrifyModel, gentrifydataTest , type= "response"))
@@ -775,6 +776,8 @@ ggplot(testProbs, aes(x = Probs, fill = as.factor(Outcome))) +
        title = "Distribution of predicted probabilities by observed outcome") + theme(strip.text.x = element_text(size = 18),
         legend.position = "none")
 ```
+
+
 ## Confusion matrix
 
 ```{r}
@@ -800,6 +803,7 @@ pROC::auc(testProbs$Outcome, testProbs$Probs) # AUC: .73
 ```
 
 ## Cross Validation
+
 ```{r}
 
 
@@ -1071,8 +1075,7 @@ print(ggroc_combined)
 # Validation on Chicago
 
 
-```{r}
-
+```{r cache = TRUE, message = FALSE, warning = FALSE,results='hide'}
 # Read and process Chicago boundary data
 chicagoBoundary <- 
   st_read(file.path(root.dir, "/Chapter5/chicagoBoundary.geojson")) %>%  # Read Chicago boundary data
@@ -1152,7 +1155,7 @@ dplyr::select(geometry)
 
 
 
-# Feature engineering for Chicago
+## Loading census data
 
 ```{r}
 
@@ -1313,9 +1316,6 @@ tractchicagogeography <- tractchicagoclipped %>%
 
 
 
-
-
-
 ## Measuring Gentrification
 
 ```{r cars}
@@ -1415,11 +1415,11 @@ gentrified_tracts_chicago <- changes_2020_2015_chicago %>%
          education_change_chicago > thresholds_2015_chicago$top_40th_education_change_chicago)
 
 # Mapping the results
-ggplot(gentrified_tracts_chicago) +
-  geom_sf(fill = "blue", color = "black") +
-  labs(title = "Gentrified Areas in 2020",
-       subtitle = "Tracts meeting all criteria for significant changes") +
-  theme_minimal()
+#ggplot(gentrified_tracts_chicago) +
+  #geom_sf(fill = "blue", color = "black") +
+  #labs(title = "Gentrified Areas in 2020",
+       #subtitle = "Tracts meeting all criteria for significant changes") +
+  #theme_minimal()
 
 
 # Switch to your own path, Xia and Jiahang!
@@ -1446,9 +1446,9 @@ ggplot() +
 
 ```
 
-# Feature Engineering
+## Feature Engineering
 
-## identify change in census
+### identify change in census
 
 ```{r}
 library(sf)
@@ -1509,7 +1509,7 @@ tractclippednewchi <- tractclippednewchi  %>%
          Density_Change = popDensity20 - popDensity)
 ```
 
-## Calculate crime by Tract
+### Calculate crime by Tract
 
 ```{r}
 crime2015_chi <- 
@@ -1592,6 +1592,8 @@ tractclippednewchi <- tractclippednewchi %>%
   mutate(race = ifelse(pctWhitePop < 0.5, "Minority", "White"))
 ```
 
+
+### Logistic regression
 ```{r}
 
 gentrifydatachi<-  st_set_geometry(tractclippednewchi , NULL)
@@ -1635,6 +1637,9 @@ kable(coefficients_table %>% select(-significance, -`Pr(>|z|)`), align = "r") %>
 summary(gentrifyModelchi)
 ```
 
+
+### Model Evaluation
+
 ```{r}
 library(pscl)
 library(plotROC)
@@ -1663,7 +1668,7 @@ ggplot(testProbschi, aes(x = Probs, fill = as.factor(Outcome))) +
 ```
 
 
-## Confusion matrix
+### Confusion matrix
 
 ```{r}
 testProbschi <- 
@@ -1682,7 +1687,6 @@ ggplot(testProbs, aes(d = as.numeric(testProbs$Outcome), m = Probs)) +
   geom_abline(slope = 1, intercept = 0, size = 1.5, color = 'grey') +
   labs(title = "ROC Curve - Gentrification")
 ```
-
 
 
 
