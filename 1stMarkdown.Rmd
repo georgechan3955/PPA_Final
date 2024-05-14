@@ -65,10 +65,10 @@ palette2 <- c("#7892B5","#D98481")
 
 ## Spatial Data
 
-## Metro Stations
+### Metro Stations
 
 
-```{r}
+```{r cache = TRUE, message = FALSE, warning = FALSE,results='hide'}
 # Reading neighborhood boundaries GeoJSON from the raw GitHub URL and transforming CRS
 boundary <- st_read("CityBoundaryofLosAngeles.geojson")%>%
 st_transform('ESRI:102645')
@@ -115,6 +115,8 @@ dplyr::select(Y = latitude, X = longitude) %>%
   st_as_sf(coords = c("X", "Y"), crs = 4326, agr = "constant")%>%  # Transforming to the specified CRS
   st_transform('ESRI:102645')
 ```
+
+### Crime Data 2015 and 2020
 
 ```{r}
 crime2015 <- 
@@ -322,7 +324,7 @@ acs_la20 <- acs_la20 %>%
 
 # Measuring Gentrification
 
-```{r cars_LA}
+```{r cache = TRUE, message = FALSE, warning = FALSE,results='hide'}
 
 library(tidycensus)
 library(dplyr)
@@ -385,7 +387,7 @@ gentrified_data_sf <- st_as_sf(gentrified_data, geometry = st_geometry(acs2014),
 
 
 
-``` {r testing}
+```{r cache = TRUE, message = FALSE, warning = FALSE}
 
 # Assuming data_sf is already loaded and contains the necessary columns
 
@@ -464,7 +466,7 @@ ggplot(gentrified_tracts_LA) +
 
 ## identify change in census
 
-```{r}
+```{r cache = TRUE, message = FALSE, warning = FALSE,results='hide'}
 library(sf)
 library(dplyr)
 
@@ -1157,7 +1159,7 @@ dplyr::select(geometry)
 
 ## Loading census data
 
-```{r}
+```{r cache = TRUE, message = FALSE, warning = FALSE,results='hide'}
 
 # Fetch the data for LA, LA County, CA,2015
 acs_chi <- get_acs(
@@ -1318,7 +1320,7 @@ tractchicagogeography <- tractchicagoclipped %>%
 
 ## Measuring Gentrification
 
-```{r cars}
+```{r cache = TRUE, message = FALSE, warning = FALSE,results='hide'}
 
 
 # Define variables for ACS data retrieval
@@ -1372,7 +1374,7 @@ gentrified_data_sf_chicago <- st_as_sf(gentrified_data_chicago, geometry = st_ge
 
 ```
 
-```{r}
+```{r cache = TRUE, message = FALSE, warning = FALSE}
 thresholds_2014_chicago <- gentrified_data_sf_chicago %>%
   summarise(
     threshold_home_value_2014_chicago = quantile(med_home_value.2014, 0.4, na.rm = TRUE),
@@ -1448,9 +1450,9 @@ ggplot() +
 
 ## Feature Engineering
 
-### identify change in census
+### Identify Changes in Census Data
 
-```{r}
+```{r cache = TRUE, message = FALSE, warning = FALSE,results='hide'}
 library(sf)
 library(dplyr)
 
@@ -1509,9 +1511,9 @@ tractclippednewchi <- tractclippednewchi  %>%
          Density_Change = popDensity20 - popDensity)
 ```
 
-### Calculate crime by Tract
+### Calculate Crime by Tracts
 
-```{r}
+```{r cache = TRUE, message = FALSE, warning = FALSE,results='hide'}
 crime2015_chi <- 
     read.socrata("https://data.cityofchicago.org/Public-Safety/Crimes-2015/vwwp-7yr9") %>% 
     dplyr::select(-Date, -Updated.On) %>%
