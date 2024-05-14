@@ -564,7 +564,10 @@ tractclippednew <- tractclippednew  %>%
          changeinhouseprice=houseprice20-houseprice,
          changeinrent=rent20-rent,
          changein2544= pct254020- pct2540,
-         newhousingunit=total_housing_units20-total_housing_units)
+         newhousingunit=total_housing_units20-total_housing_units,
+         migChange = pctMigration20 - pctMigration20, 
+         incomeChange = median_HH_income20 - median_HH_income, 
+         minorityChange = (1-pctWhitePop20) - (1-pctWhitePop))
 ```
 
 
@@ -686,56 +689,6 @@ wrap_plots(
 )
 
 
-```
-
-
-## Defining TOD Area (Buffer, Union, and Centroid Selection)
-
-In the following steps, I buffered half-mile from the metro stations and bus stations, and select the census tracts containing the centroids of the buffers. These selected census tracts are defined as TOD area as dummy variable compared to non-TOD area
-```{r Metro Buffer, warning = FALSE, cache = TRUE, message = FALSE}
-metroBuffer <- st_buffer(metro, 2640) 
-
-metroUnion <- st_union(metroBuffer)
-
-```
-
-
-```{r union and transformer, warning = FALSE, cache = TRUE, message = FALSE}
-
-metroUnion <- st_transform(metroUnion, crs = st_crs(tractgeography))
-```
-
-```{r plot intersection, warning = FALSE, cache = TRUE, message = FALSE}
-selectCentroids <- st_centroid(tractgeography)
-
-intersection <- st_intersects(tractgeography, metroUnion, sparse = FALSE)
-
-tractgeography <- tractgeography %>%
-  mutate(intersection = purrr::map_dbl(intersection, ~ ifelse(any(.x), 1, 0)))
-
-intersection_data <- tractgeography %>%
-  select(GEOID, intersection)
-```
-
-```{r}
-gentrifydata <- st_join(gentrifydata, intersection_data, by = "GEOID")
-```
-
-```{r}
-tractgeography <- tractgeography %>%
-  mutate(TOD = ifelse(intersection == 1, "TOD", "non-TOD"))
-
-# Basic map with TOD classification
-TOD <- ggplot(data = tractgeography) +
-  geom_sf(aes(fill = TOD), color = "black", size = 0.1) +
-  scale_fill_manual(values = c("TOD" = "#7892B5", "non-TOD" = "#D98481")) +
-  labs(title = "TOD Area by Census Tract",
-       fill = "TOD Status") +
-  theme_void()
-
-# Print the map
-print(map)
-ggsave("TOD.png", plot = TOD, bg = "transparent", width = 10, height = 8, dpi = 300)
 ```
 
 
@@ -1143,7 +1096,7 @@ acs_chi <- acs_chi %>%
   )
 
 
-acs_la20 <- acs_la20 %>%
+acs_chi20 <- acs_chi20 %>%
   rename(totalPop20 = "B01001_001E",
   male20 = "B01001_002E",
   female20 = "B01001_026E",
@@ -1199,46 +1152,10 @@ acs_la20 <- acs_la20 %>%
 datachicago<-st_join(acs_chi,acs_chi20)
 chicagoBoundary <- st_transform(chicagoBoundary, crs = st_crs(datachicago))
 tractchicagoclipped <- st_intersection(datachicago, chicagoBoundary)
-tractchicagogeography <- tractchicagoclipped%>%
-  dplyr::select(GEOID, geometry)
+tractchicagogeography <- tractchicagoclipped %>%
+  dplyr::select(GEOID.x, geometry)%>%
+  mutate(GEOID=GEOID.x)
 
-
-# grocerystore
-chicagogrocerystore_sf <- chicagogrocerystore_sf %>%
-  st_join(tractchicagogeography, left = F)
-chigrocerystorenumber <- chicagogrocerystore_sf %>%
-  group_by(GEOID) %>%  # Replace TRACT_ID with the actual identifier field for tracts
-  summarise(chigrocerycount = n())
-  
-chigrocerystorenumber <- chigrocerystorenumber
-chigrocerystorenumber <- st_set_geometry(chigrocerystorenumber, NULL)
-
-gentrifydatachi <- left_join(tractchicagogeography, chigrocerystorenumber)
-
-# restaurant
-restaurantchicago <- restaurantchicago %>%
-  st_join(tractchicagogeography, left = F)
-restaurantchicago  <- restaurantchicago  %>%
-  group_by(GEOID) %>%  # Replace TRACT_ID with the actual identifier field for tracts
-  summarise(chirestcount = n())
-  
-restaurantchicago  <- restaurantchicago 
-restaurantchicago  <- st_set_geometry(restaurantchicago , NULL)
-
-gentrifydatachi <- left_join(gentrifydatachi, restaurantchicago )
-
-
-# school
-schoolchicago_sf <- schoolchicago_sf %>%
-  st_join(tractchicagogeography, left = F)
-schoolchicago_sf  <- schoolchicago_sf  %>%
-  group_by(GEOID) %>%  # Replace TRACT_ID with the actual identifier field for tracts
-  summarise(schoolcount = n())
-  
-schoolchicago_sf  <- schoolchicago_sf
-schoolchicago_sf  <- st_set_geometry(schoolchicago_sf, NULL)
-
-gentrifydatachi <- left_join(gentrifydatachi, schoolchicago_sf)
 
 
 ```
@@ -1422,7 +1339,7 @@ datachi <- left_join(acs_chi_nogeom, acs_chi20_nogeom, by = "GEOID")
 
 
 # Convert acs2015 to a spatial dataframe and select relevant columns
-datageographychi <- st_as_sf(acs2015_chicago, geometry = "geometry", crs = 4326) %>%
+datageographychi <- st_as_sf(acs_chi, geometry = "geometry", crs = 4326) %>%
   select(GEOID, geometry)
 
 # Joining non-spatial data with spatial data and ensuring it remains a spatial dataframe
@@ -1435,7 +1352,7 @@ chicagoBoundary <-
   st_transform('ESRI:102271')  # Transform coordinate reference system
 
 # Transform datanew to match the CRS of boundary
-datanewchi <- st_transform(datanew, st_crs(chicagoBoundary))
+datanewchi <- st_transform(datanewchi, st_crs(chicagoBoundary))
 
 # Perform the intersection of boundary and datanew
 tractclippedchi <- st_intersection(chicagoBoundary, datanewchi)
@@ -1465,6 +1382,104 @@ tractclippednewchi <- tractclippednewchi  %>%
          newhousingunit=total_housing_units20-total_housing_units)
 ```
 
+
+
+```{r}
+colnames(tractclippednewchi)
+```
+
+
+
+## Modeling building
+
+
+```{r}
+gentrifydatachi<-  st_set_geometry(tractclippednewchi , NULL)
+# Correct use of set.seed(
+set.seed(479)
+
+# Assuming gentrifydatachi is your data frame and NAME is a column in your dataframe
+trainIndex <- caret::createDataPartition(y = gentrifydatachi$NAME, p = 0.65, list = FALSE, times = 1)
+
+```
+
+
+
+```{r}
+gentrifydatachiTrain <- gentrifydatachi[ trainIndex,]
+gentrifydatachiTest  <- gentrifydatachi[-trainIndex,]
+
+gentrifyModelchi <- glm(gentrification ~ .,data=gentrifydatachiTrain %>% dplyr::select(gentrification, changeinpoverty,changeinbachelor, changeinwhite,pctBachelors20,pctBachelors, changein2544,houseprice20,rent,rent20,changeinhouseprice,newhousingunit),family="binomial"(link="logit"))
+
+# Load necessary libraries
+library(dplyr)
+library(knitr)
+library(kableExtra)
+
+# Assuming recidivismModel and previous steps have been correctly run
+gentrifyModel_sumchi <- summary(gentrifyModelchi)
+coefficients_table <- as.data.frame(gentrifyModel_sumchi $coefficients)
+
+# Apply significance stars based on p-values
+coefficients_table$significance <- ifelse(coefficients_table$`Pr(>|z|)` < 0.001, '***',
+                                         ifelse(coefficients_table$`Pr(>|z|)` < 0.01, '**',
+                                                ifelse(coefficients_table$`Pr(>|z|)` < 0.05, '*',
+                                                       ifelse(coefficients_table$`Pr(>|z|)` < 0.1, '.', ''))))
+
+
+
+# Print the table with formatting
+kable(coefficients_table %>% select(-significance, -`Pr(>|z|)`), align = "r") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed")) %>%
+  footnote(general_title = "\n", general = "Table 3")
+summary(gentrifyModelchi)
+```
+
+```{r}
+library(pscl)
+library(plotROC)
+library(pROC)
+pR2(gentrifyModelchi ) #McFadden: 0.246
+```
+
+
+
+```{r}
+testProbschi <- data.frame(Outcome = as.factor(gentrifydatachiTest$gentrification), Probs = predict(gentrifyModelchi, gentrifydatachiTest , type= "response"))
+head(testProbschi)
+```
+
+
+
+
+```{r}
+ggplot(testProbschi, aes(x = Probs, fill = as.factor(Outcome))) + 
+  geom_density() +
+  facet_grid(Outcome ~ .) +
+  scale_fill_manual(values = palette2) + xlim(1, 0) +
+  labs(x = "Gentrification", y = "Density of probabilities",
+       title = "Distribution of predicted probabilities by observed outcome") + theme(strip.text.x = element_text(size = 18),
+        legend.position = "none")
+```
+## Confusion matrix
+
+```{r}
+testProbschi <- 
+  testProbschi %>%
+  mutate(predOutcome  = as.factor(ifelse(testProbschi$Probs > 0.12 , 1, 0)))
+
+caret::confusionMatrix(testProbschi$predOutcome, testProbschi$Outcome, 
+                       positive = "0")
+```
+
+
+```{r}
+ggplot(testProbs, aes(d = as.numeric(testProbs$Outcome), m = Probs)) +
+  geom_roc(n.cuts = 50, labels = FALSE, colour = "#FE9900") +
+  style_roc(theme = theme_grey) +
+  geom_abline(slope = 1, intercept = 0, size = 1.5, color = 'grey') +
+  labs(title = "ROC Curve - Gentrification")
+```
 
 
 
