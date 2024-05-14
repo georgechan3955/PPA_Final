@@ -116,17 +116,6 @@ dplyr::select(Y = latitude, X = longitude) %>%
 ```
 
 ```{r}
-# income restricted housing by neighborhood
-
-inc_restricted_housing_2022 <- read.csv("https://data.boston.gov/dataset/feddfe5a-df16-4c60-8a3c-640c4d5281cd/resource/bfdeffc7-ab5e-4e28-9561-d4e84c9674e4/download/income-restricted-housing-inventory-2022.csv", stringsAsFactors = FALSE)
-
-inc_restricted_housing_2018 <- read.csv("https://data.boston.gov/dataset/feddfe5a-df16-4c60-8a3c-640c4d5281cd/resource/47d53d7c-25b7-40b4-9259-da1d15373be6/download/income-restricted-inventory-2018-all-income-restricted-projects.csv", stringsAsFactors = FALSE)
-
-```
-
-
-
-```{r}
 crime2015 <- 
   read.socrata("https://data.lacity.org/Public-Safety/Crime-Data-from-2010-to-2019/63jg-8b9z/") %>%
   mutate(year = substr(date_rptd,1,4)) %>% filter(year == "2015") %>%
@@ -348,53 +337,12 @@ variable <- c(med_income = "B19013_001E",  # Median household income
                total_bachelors = "B16010_041E",  # with Bachelor's degree or higher
                med_home_value = "B25077_001E")  # Median home value
 
-# variables_2009 <- c(med_income = "B19013_001E",  # Median household income
-#                # % with Bachelor's degree or higher
-#                med_home_value = "B25077_001E",
-#                whitealone_male = 'C15002H_006E',
-#                whitealone_female = 'C15002H_011E',
-#                black_male = 'C15002B_006E',
-#                black_female = 'C15002B_011E',
-#                Indian_male = 'C15002C_006E',
-#                Indian_female = 'C15002C_011E',
-#                Asian_male = 'C15002D_006E',
-#                Asian_female = 'C15002D_011E',
-#                Hawaiian_male = 'C15002E_006E',
-#                Hawaiian_female = 'C15002E_011E',
-#                other_male = 'C15002F_006E',
-#                other_female = 'C15002F_011E',
-#                two_male = 'C15002G_006E',
-#                two_female = 'C15002G_011E',
-#                hispanic_male = 'C15002I_006E',
-#                hispanic_female = 'C15002I_011E'
-#                ) 
-
 
 
 # Fetch ACS data for 2010 and 2015
 acs2014 <- get_acs(geography = "tract", variables = variable, year = 2014, 
                    survey = "acs5", state = 06, county = 037, geometry = TRUE,output = "wide") 
 # %>% 
-#   select(-matches("M$")) %>% 
-#   mutate(total_bachelors = whitealone_male + whitealone_female +
-#                             black_male + black_female +
-#                             Indian_male + Indian_female +
-#                             Asian_male + Asian_female +
-#                             Hawaiian_male + Hawaiian_female +
-#                             other_male + other_female +
-#                             two_male + two_female +
-#                             hispanic_male + hispanic_female) %>%
-#   select(
-#     -whitealone_male, -whitealone_female,
-#     -black_male, -black_female,
-#     -Indian_male, -Indian_female,
-#     -Asian_male, -Asian_female,
-#     -Hawaiian_male, -Hawaiian_female,
-#     -other_male, -other_female,
-#     -two_male, -two_female,
-#     -hispanic_male, -hispanic_female
-#   )
-  
 
 acs2020 <- get_acs(geography = "tract", variables = variable, year = 2020, 
                    survey = "acs5", state = 06, county = 037, geometry = TRUE,output = "wide") %>% 
@@ -574,7 +522,6 @@ tractclippednew <- tractclippednew  %>%
 ## identify number of grocery stores in each tract
 
 ```{r}
-
 grocerystorepoint <- grocerystore %>%
   st_transform(st_crs(tractgeography))%>%
   st_join(tractgeography, left = F)
@@ -857,18 +804,25 @@ ggplot(testProbs, aes(d = as.numeric(testProbs$Outcome), m = Probs)) +
 pROC::auc(testProbs$Outcome, testProbs$Probs) # AUC: .73
 ```
 
-
 ## Cross Validation
 ```{r}
 
 
 # Replace NA values in the 'gentrification' column with 0 (or another appropriate value)
-gentrifydata$gentrification <- ifelse(is.na(gentrifydata$gentrification), 0, gentrifydata$gentrification)
+gentrifydata_clean <- gentrifydata %>%
+  select(gentrification, changeinpoverty,changeinbachelor, changeinwhite,pctBachelors20,pctBachelors,changein2544,houseprice20,rent,rent20,changeinhouseprice,newhousingunit) %>%
+  na.omit() 
+
+# Convert 'gentrification' to a factor with levels that are valid R variable names
+gentrifydata_clean$gentrification <- factor(gentrifydata_clean$gentrification, levels = c(0, 1), labels = c("No", "Yes"))
+
+# Check the new levels
+levels(gentrifydata_clean$gentrification)
 
 
 customSummary <- function(data, lev = NULL, model = NULL) {
   # Assuming the positive class is labeled as 'True'
-  prob <- ifelse(data[, "true"] >= 0.3, lev[2], lev[1])
+  prob <- ifelse(data[, "true"] >= 0.1, lev[2], lev[1])
   
   # Convert probabilities to factors with levels as per the actual outcomes
   prob <- factor(prob, levels = lev)
@@ -882,19 +836,24 @@ customSummary <- function(data, lev = NULL, model = NULL) {
   out
 }
 
-# Set up trainControl with the custom summary function
-ctrl <- trainControl(method = "cv", 
-                     number = 100, 
-                     classProbs = TRUE, 
-                     summaryFunction = customSummary)
+# Assuming gentrifydata_clean is already loaded and cleaned
+#gentrifydata_clean$gentrification <- factor(gentrifydata_clean$gentrification, levels = c(0, 1))
+
+# Set up training control
+ctrl <- trainControl(
+  method = "cv",
+  number = 10,
+  classProbs = TRUE, 
+  summaryFunction = twoClassSummary
+)
 
 # Fit the model
 cvFit <- train(gentrification ~ .,
-               data = gentrifydata %>% 
-                 select(gentrification, changeinpoverty,changeinbachelor, changeinwhite,pctBachelors20,houseprice,changein2544),
-               method = "glm", 
+               data = gentrifydata_clean %>%
+                 select(gentrification, changeinpoverty,changeinbachelor, changeinwhite,pctBachelors20,pctBachelors,changein2544,houseprice20,rent,rent20,changeinhouseprice,newhousingunit),
+               method = "glm",
                family = "binomial",
-               metric = "Accuracy",  # Now using Accuracy or whichever metric you prefer
+               metric = "Accuracy",
                trControl = ctrl)
 
 # Print the fit model
@@ -1162,8 +1121,7 @@ tractchicagogeography <- tractchicagoclipped %>%
 
 ```{r}
 crime2015_chi <- 
-    read.socrata("https://data.cityofchicago.org/Public-Safety/Crimes-2001-to-Present/ijzp-q8t2") %>% 
-    filter(year == "2015")
+    read.socrata("https://data.cityofchicago.org/Public-Safety/Crimes-2015/vwwp-7yr9") %>% 
     dplyr::select(-Date, -Updated.On) %>%
     mutate(x = gsub("[()]", "", Location)) %>%
     separate(x,into= c("Y","X"), sep=",") %>%
@@ -1176,8 +1134,7 @@ crime2015_chi <-
 
 ```{r}
 crime2020_chi <- 
-    read.socrata("https://data.cityofchicago.org/Public-Safety/Crimes-2001-to-Present/ijzp-q8t2") %>% 
-    filter(year == "2020")
+    read.socrata("https://data.cityofchicago.org/Public-Safety/Crimes-2020/qzdf-xmn8") %>% 
     dplyr::select(-Date, -Updated.On) %>%
     mutate(x = gsub("[()]", "", Location)) %>%
     separate(x,into= c("Y","X"), sep=",") %>%
