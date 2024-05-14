@@ -322,7 +322,7 @@ acs_la20 <- acs_la20 %>%
 
 # Measuring Gentrification
 
-```{r cars}
+```{r cars_LA}
 
 library(tidycensus)
 library(dplyr)
