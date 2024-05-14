@@ -71,7 +71,7 @@ Our project tests a combination of spatial and non-spatial data to construct a c
 
 ## Spatial Data
 
-### Metro Station
+
 
 ```{r cache = TRUE, message = FALSE, warning = FALSE,results='hide'}
 
@@ -84,7 +84,6 @@ metro <-
   st_transform('ESRI:102645')
 ```
 
-### Grocery store
 
 ```{r}
 grocerystore <- read.socrata("https://data.lacity.org/resource/g986-7yf9.json")
@@ -98,7 +97,6 @@ grocerystore <- grocerystore %>%
 ```
 
 
-### Restaurant
 
 ```{r}
 
@@ -112,7 +110,6 @@ st_transform('ESRI:102645')
 
 ```
 
-### Education Facities
 
 ```{r cache = TRUE, message = FALSE, warning = FALSE,results='hide'}
 educationfacilities <- 
@@ -125,7 +122,7 @@ dplyr::select(Y = latitude, X = longitude) %>%
   st_transform('ESRI:102645')
 ```
 
-### Crime Data 2015 and 2020
+
 
 ```{r}
 
@@ -151,7 +148,7 @@ crime2020 <-
 ```
 
 
-### Census Data 2015 and 2020
+## Census Data 2015 and 2020
 
 As current studies mentioned the impact of historical racial segregation (Hwang & Sampson, 2014) and migration (Hwang et al., 2015) on gentrification, we give attention to white and minority household ownership proportions and migration rates. We also consider more demographic variables referencing the study of DeVylder et al. (2019), including gender, age group, annual household income, and education level. We refined the raw census data to calculate percentage representations for critical metrics. This normalization allows us to assess gentrification impacts relative to the total population per tract, ensuring comparability across diverse geographic regions. Changes in key socioeconomic indicators over time (2015-2020) were computed to capture the dynamics of gentrification. These include changes in poverty levels, educational attainment, and racial demographics. 
 
@@ -567,8 +564,6 @@ tractclippednew <- tractclippednew  %>%
 We conducted spatial joins between census tracts and points of interest to count the number of amenities within each tract. This process included grocery stores, housing permits (indicative of development activity), restaurants, and educational facilities, providing a lens into the changing infrastructural landscape which often accompanies or signals gentrification.
 
 
-### identify number of grocery stores in each tract
-
 ```{r}
 grocerystorepoint <- grocerystore %>%
   st_transform(st_crs(tractgeography))%>%
@@ -587,9 +582,6 @@ gentrifydata <- left_join(tractclippednew, grocerystorenumber )
 
 
 
-### identify number of restaurants in each tract
-
-
 ```{r}
 
 
@@ -606,7 +598,7 @@ gentrifydata <- left_join(gentrifydata, restaurantnumber )
 
 ```
 
-### identify number of education facilities in each tract
+
 
 ```{r}
 
