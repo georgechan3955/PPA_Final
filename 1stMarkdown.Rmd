@@ -1861,6 +1861,17 @@ Introduce the predictive model as a state-of-the-art tool designed to identify a
 
 
 
+# Reference
 
+DeVylder, J., Fedina, L., & Jun, H.-J. (2019). The Neighborhood Change and Gentrification Sc
+ale: Factor analysis of a novel self-report measure. Social Work Research, 43(4), 279–284. https://doi.org/10.1093/swr/svz015
+
+Hwang, J. (2016). The social construction of a gentrifying neighborhood: Reifying and redefining identity and boundaries in inequality. Urban Affairs Review, 52(1), 98-128.
+
+Hwang, J. (2015). Gentrification in changing cities: Immigration, new diversity, and racial inequality in neighborhood renewal. The Annals of the American Academy of Political and Social Science, 660(1), 319-340.
+
+Hwang, J., & Sampson, R. J. (2014). Divergent pathways of gentrification: Racial inequality and the social order of renewal in Chicago neighborhoods. American sociological review, 79(4), 726-751.
+
+Richardson, J., Mitchell, B., & Edlebi, J. (2020). Gentrification and disinvestment 2020.
 
 
