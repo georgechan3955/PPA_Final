@@ -758,7 +758,7 @@ summary(gentrifyModel)
 library(pscl)
 library(plotROC)
 library(pROC)
-pR2(gentrifyModel ) #McFadden: 0.246
+pR2(gentrifyModel ) 
 ```
 
 Visually we now can begin comparing the predictions of recidivism. A negative or 0 value means that there is no recidivism, while a positive or 1 value means that there is recidivism. Strong models will have a peak closer to 0 for the negatives (no recidivism), and a peak closer to 1 for the positives (recidivism). In the following graph we can see that our model is better at prediciting the positives rather than the negatives.
