@@ -451,7 +451,7 @@ gentrified_tracts_LA <- st_intersection(gentrified_tracts, la_city_boundary)
 # Mapping the results
 ggplot(gentrified_tracts_LA) +
   geom_sf(data = la_city_boundary, fill = "grey80", color = "black", size = 0.2, alpha = 0.5) +
-  geom_sf(fill = "blue", color = "black") +
+  geom_sf(fill = "#7892B5", color = "black") +
   labs(title = "Gentrified Areas in 2020, City of LA",
        subtitle = "Tracts meeting all criteria for significant changes") +
   theme_minimal()
@@ -789,7 +789,7 @@ caret::confusionMatrix(testProbs$predOutcome, testProbs$Outcome,
 
 ```{r}
 ggplot(testProbs, aes(d = as.numeric(testProbs$Outcome), m = Probs)) +
-  geom_roc(n.cuts = 50, labels = FALSE, colour = "#FE9900") +
+  geom_roc(n.cuts = 50, labels = FALSE, colour = "#D98481") +
   style_roc(theme = theme_grey) +
   geom_abline(slope = 1, intercept = 0, size = 1.5, color = 'grey') +
   labs(title = "ROC Curve - Gentrification")
@@ -1308,31 +1308,7 @@ tractchicagogeography <- tractchicagoclipped %>%
 
 ```
 
-```{r}
-crime2015_chi <- 
-    read.socrata("https://data.cityofchicago.org/Public-Safety/Crimes-2015/vwwp-7yr9") %>% 
-    dplyr::select(-Date, -Updated.On) %>%
-    mutate(x = gsub("[()]", "", Location)) %>%
-    separate(x,into= c("Y","X"), sep=",") %>%
-    mutate(X = as.numeric(X),Y = as.numeric(Y)) %>% 
-    na.omit() %>%
-    st_as_sf(coords = c("X", "Y"), crs = 4326, agr = "constant")%>%
-    st_transform('ESRI:102271') %>%  
-    distinct()
-```
 
-```{r}
-crime2020_chi <- 
-    read.socrata("https://data.cityofchicago.org/Public-Safety/Crimes-2020/qzdf-xmn8") %>% 
-    dplyr::select(-Date, -Updated.On) %>%
-    mutate(x = gsub("[()]", "", Location)) %>%
-    separate(x,into= c("Y","X"), sep=",") %>%
-    mutate(X = as.numeric(X),Y = as.numeric(Y)) %>% 
-    na.omit() %>%
-    st_as_sf(coords = c("X", "Y"), crs = 4326, agr = "constant")%>%
-    st_transform('ESRI:102271') %>% 
-    distinct()
-```
 
 
 
@@ -1461,7 +1437,7 @@ gentrified_tract_chicagonew <- st_drop_geometry(gentrified_tracts_chicago)%>%
 
 ggplot() +
   geom_sf(data = chicago_city_boundary, fill = "grey80", color = "black", size = 0.2, alpha = 0.5) +
-  geom_sf(data = gentrified_tracts_chicago, fill = "blue", color = "black", size = 0.5, alpha = 0.8) +
+  geom_sf(data = gentrified_tracts_chicago, fill = "#7892B5", color = "black", size = 0.5, alpha = 0.8) +
   labs(
     title = "Gentrified Areas in Chicago, 2020",
     subtitle = "Tracts meeting all criteria for significant changes"
@@ -1533,6 +1509,74 @@ tractclippednewchi <- tractclippednewchi  %>%
          Density_Change = popDensity20 - popDensity)
 ```
 
+## Calculate crime by Tract
+
+```{r}
+crime2015_chi <- 
+    read.socrata("https://data.cityofchicago.org/Public-Safety/Crimes-2015/vwwp-7yr9") %>% 
+    dplyr::select(-Date, -Updated.On) %>%
+    mutate(x = gsub("[()]", "", Location)) %>%
+    separate(x,into= c("Y","X"), sep=",") %>%
+    mutate(X = as.numeric(X),Y = as.numeric(Y)) %>% 
+    na.omit() %>%
+    st_as_sf(coords = c("X", "Y"), crs = 4326, agr = "constant")%>%
+    st_transform('ESRI:102271') %>%  
+    distinct()
+```
+
+```{r}
+crime2020_chi <- 
+    read.socrata("https://data.cityofchicago.org/Public-Safety/Crimes-2020/qzdf-xmn8") %>% 
+    dplyr::select(-Date, -Updated.On) %>%
+    mutate(x = gsub("[()]", "", Location)) %>%
+    separate(x,into= c("Y","X"), sep=",") %>%
+    mutate(X = as.numeric(X),Y = as.numeric(Y)) %>% 
+    na.omit() %>%
+    st_as_sf(coords = c("X", "Y"), crs = 4326, agr = "constant")%>%
+    st_transform('ESRI:102271') %>% 
+    distinct()
+```
+
+
+
+
+
+
+
+
+
+```{r}
+crime2015pointchi <- crime2015_chi %>%
+  st_join(tractgeographychi, left = F)
+crime2015numberchi <- crime2015pointchi %>%
+  group_by(GEOID) %>%  
+  summarise(crime2015countchi = n())
+  
+crime2015numberchi <- crime2015numberchi
+crime2015numberchi <- st_set_geometry(crime2015numberchi, NULL)
+
+tractclippednewchi <- left_join(tractclippednewchi, crime2015numberchi, by = c("GEOID"))
+```
+
+```{r}
+crime2020pointchi <- crime2020_chi %>%
+  st_join(tractgeographychi, left = F)
+crime2020numberchi <- crime2020pointchi %>%
+  group_by(GEOID) %>%  # Replace TRACT_ID with the actual identifier field for tracts
+  summarise(crime2020countchi = n())
+  
+crime2020numberchi <- crime2020numberchi
+crime2020numberchi <- st_set_geometry(crime2020numberchi, NULL)
+
+tractclippednewchi <- left_join(tractclippednewchi,crime2020numberchi, by = c("GEOID"))
+```
+
+```{r}
+tractclippednewchi <- tractclippednewchi %>%
+  mutate(crimeChangechi = crime2020countchi - crime2015countchi)
+
+```
+
 
 
 ```{r}
@@ -1565,7 +1609,7 @@ trainIndex <- caret::createDataPartition(y = gentrifydatachi$gentrification, p =
 gentrifydatachiTrain <- gentrifydatachi[ trainIndex,]
 gentrifydatachiTest  <- gentrifydatachi[-trainIndex,]
 
-gentrifyModelchi <- glm(gentrification ~ .,data=gentrifydatachiTrain %>% dplyr::select(gentrification, changeinpoverty,changeinbachelor, changeinwhite,pctBachelors20,changein2544,houseprice20,rent,rent20,changeinhouseprice,newhousingunit, incomeChange,crimeChange, ForMig_Change, Density_Change,race),family="binomial"(link="logit"))
+gentrifyModelchi <- glm(gentrification ~ .,data=gentrifydatachiTrain %>% dplyr::select(gentrification, changeinpoverty,changeinbachelor, changeinwhite,pctBachelors20,changein2544,houseprice20,rent,rent20,changeinhouseprice,newhousingunit, incomeChange,crimeChangechi, ForMig_Change, Density_Change,race),family="binomial"(link="logit"))
 
 # Load necessary libraries
 library(dplyr)
@@ -1617,6 +1661,8 @@ ggplot(testProbschi, aes(x = Probs, fill = as.factor(Outcome))) +
        title = "Distribution of predicted probabilities by observed outcome") + theme(strip.text.x = element_text(size = 18),
         legend.position = "none")
 ```
+
+
 ## Confusion matrix
 
 ```{r}
@@ -1631,7 +1677,7 @@ caret::confusionMatrix(testProbschi$predOutcome, testProbschi$Outcome,
 
 ```{r}
 ggplot(testProbs, aes(d = as.numeric(testProbs$Outcome), m = Probs)) +
-  geom_roc(n.cuts = 50, labels = FALSE, colour = "#FE9900") +
+  geom_roc(n.cuts = 50, labels = FALSE, colour = "#D98481") +
   style_roc(theme = theme_grey) +
   geom_abline(slope = 1, intercept = 0, size = 1.5, color = 'grey') +
   labs(title = "ROC Curve - Gentrification")
