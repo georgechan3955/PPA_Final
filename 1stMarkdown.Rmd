@@ -1151,7 +1151,7 @@ dplyr::select(geometry)
 
 
 
-#Feature engineering for Chicago
+# Feature engineering for Chicago
 
 ```{r}
 
@@ -1524,7 +1524,12 @@ tractclippednewchi <- tractclippednewchi  %>%
          changeinhouseprice=houseprice20-houseprice,
          changeinrent=rent20-rent,
          changein2544= pct254020- pct2540,
-         newhousingunit=total_housing_units20-total_housing_units)
+         newhousingunit=total_housing_units20-total_housing_units,
+         migChange = pctMigration20 - pctMigration20, 
+         incomeChange = median_HH_income20 - median_HH_income, 
+         minorityChange = (1-pctWhitePop20) - (1-pctWhitePop),
+         ForMig_Change = pctForeignMig20 - pctForeignMig,
+         Density_Change = popDensity20 - popDensity)
 ```
 
 
@@ -1537,14 +1542,19 @@ colnames(tractclippednewchi)
 
 ## Modeling building
 
+```{r}
+tractclippednewchi <- tractclippednewchi %>%
+  mutate(race = ifelse(pctWhitePop < 0.5, "Minority", "White"))
+```
 
 ```{r}
+
 gentrifydatachi<-  st_set_geometry(tractclippednewchi , NULL)
 # Correct use of set.seed(
 set.seed(479)
 
 # Assuming gentrifydatachi is your data frame and NAME is a column in your dataframe
-trainIndex <- caret::createDataPartition(y = gentrifydatachi$NAME, p = 0.65, list = FALSE, times = 1)
+trainIndex <- caret::createDataPartition(y = gentrifydatachi$gentrification, p = 0.65, list = FALSE, times = 1)
 
 ```
 
@@ -1554,7 +1564,7 @@ trainIndex <- caret::createDataPartition(y = gentrifydatachi$NAME, p = 0.65, lis
 gentrifydatachiTrain <- gentrifydatachi[ trainIndex,]
 gentrifydatachiTest  <- gentrifydatachi[-trainIndex,]
 
-gentrifyModelchi <- glm(gentrification ~ .,data=gentrifydatachiTrain %>% dplyr::select(gentrification, changeinpoverty,changeinbachelor, changeinwhite,pctBachelors20,pctBachelors, changein2544,houseprice20,rent,rent20,changeinhouseprice,newhousingunit),family="binomial"(link="logit"))
+gentrifyModelchi <- glm(gentrification ~ .,data=gentrifydatachiTrain %>% dplyr::select(gentrification, changeinpoverty,changeinbachelor, changeinwhite,pctBachelors20,changein2544,houseprice20,rent,rent20,changeinhouseprice,newhousingunit, incomeChange,crimeChange, ForMig_Change, Density_Change,race),family="binomial"(link="logit"))
 
 # Load necessary libraries
 library(dplyr)
