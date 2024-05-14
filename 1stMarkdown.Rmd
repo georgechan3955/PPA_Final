@@ -1513,7 +1513,8 @@ tractclippednewchi <- tractclippednewchi  %>%
 
 ### Calculate Crime by Tracts
 
-```{r cache = TRUE, message = FALSE, warning = FALSE,results='hide'}
+```{r cache = False, message = FALSE, warning = FALSE,results='hide'}
+
 crime2015_chi <- 
     read.socrata("https://data.cityofchicago.org/Public-Safety/Crimes-2015/vwwp-7yr9") %>% 
     dplyr::select(-Date, -Updated.On) %>%
@@ -1524,6 +1525,7 @@ crime2015_chi <-
     st_as_sf(coords = c("X", "Y"), crs = 4326, agr = "constant")%>%
     st_transform('ESRI:102271') %>%  
     distinct()
+
 ```
 
 ```{r}
