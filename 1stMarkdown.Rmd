@@ -437,23 +437,24 @@ gentrified_tracts <- gentrified_tracts %>%
 gentrified_tractsnew <- st_drop_geometry(gentrified_tracts)%>%
    mutate(gentrification = 1)
 
-# Mapping the results
-ggplot(gentrified_tracts) +
-  geom_sf(fill = "blue", color = "black") +
-  labs(title = "Gentrified Areas in 2020",
-       subtitle = "Tracts meeting all criteria for significant changes") +
-  theme_minimal()
 
 
 # Switch to your own path, Xia and Jiahang!
-#la_city_boundary <- st_read("CityBoundaryofLosAngeles.geojson") %>%
-#st_transform(st_crs(gentrified_tracts))
+la_city_boundary <- st_read("CityBoundaryofLosAngeles.geojson") %>%
+st_transform(st_crs(gentrified_tracts))
 
 
 # THIS IS THE DATASET!!!!!!!!!
-#gentrified_tracts_LA <- st_intersection(gentrified_tracts, la_city_boundary)
+gentrified_tracts_LA <- st_intersection(gentrified_tracts, la_city_boundary)
 
-# Need Spatial Join by geometry or join by GEOID
+# Mapping the results
+ggplot(gentrified_tracts_LA) +
+  geom_sf(data = la_city_boundary, fill = "grey80", color = "black", size = 0.2, alpha = 0.5) +
+  geom_sf(fill = "blue", color = "black") +
+  labs(title = "Gentrified Areas in 2020, City of LA",
+       subtitle = "Tracts meeting all criteria for significant changes") +
+  theme_minimal()
+
 ```
 
 
