@@ -515,7 +515,9 @@ tractclippednew <- tractclippednew  %>%
          newhousingunit=total_housing_units20-total_housing_units,
          migChange = pctMigration20 - pctMigration20, 
          incomeChange = median_HH_income20 - median_HH_income, 
-         minorityChange = (1-pctWhitePop20) - (1-pctWhitePop))
+         minorityChange = (1-pctWhitePop20) - (1-pctWhitePop),
+         ForMig_Change = pctForeignMig20 - pctForeignMig,
+         Density_Change = popDensity20 - popDensity)
 ```
 
 
@@ -606,19 +608,6 @@ plot_grocerystores <- ggplot() +
 
 
 
-plot_housingpermit <- ggplot() +
-  geom_sf(data=gentrifydata,fill="transparent", color = "grey")+
-  stat_density2d(data = data.frame(st_coordinates(newhousingpermitpoint)), 
-                 aes(X, Y, fill = ..level.., alpha = ..level..),
-                 size = 0.01, bins = 40, geom = 'polygon') +
-  scale_fill_gradient(low='#7892B5', high='#fecc5c', name = "Density") +
-  scale_alpha(range = c(0.00, 0.35), guide = FALSE) +
-  labs(title="Density of housingpermit",subtitle = "Los Angelas,CA")+
-   theme_void()
-
-
-
-
 plot_restaurant<- ggplot() +
   geom_sf(data=gentrifydata,fill="transparent", color = "grey")+
   stat_density2d(data = data.frame(st_coordinates(restaurantpoint)), 
@@ -631,7 +620,7 @@ plot_restaurant<- ggplot() +
 
 
 wrap_plots(
-  plot_restaurant, plot_school, plot_housingpermit, plot_grocerystores,
+  plot_restaurant, plot_school,  plot_grocerystores,
   ncol = 2  
 )
 
@@ -651,7 +640,7 @@ crime2015number <- crime2015point %>%
 crime2015number <- crime2015number
 crime2015number <- st_set_geometry(crime2015number, NULL)
 
-gentrifydata <- left_join(gentrifydata, crime2015number, by = c("GEOID.x" = "GEOID"))
+gentrifydata <- left_join(gentrifydata, crime2015number, by = c("GEOID"))
 ```
 
 ```{r}
@@ -664,7 +653,7 @@ crime2020number <- crime2020point %>%
 crime2020number <- crime2020number
 crime2020number <- st_set_geometry(crime2020number, NULL)
 
-gentrifydata <- left_join(gentrifydata,crime2020number, by = c("GEOID.x" = "GEOID"))
+gentrifydata <- left_join(gentrifydata,crime2020number, by = c("GEOID"))
 ```
 
 ```{r}
@@ -708,7 +697,11 @@ colnames(gentrifydata)
 ## Modeling building
 
 
+```{r}
 
+gentrifydata <- gentrifydata %>%
+  mutate(race = ifelse(pctWhitePop < 0.5, "Minority", "White"))
+```
 
 
 
@@ -728,7 +721,7 @@ trainIndex <- createDataPartition(y = paste(gentrifydata) , p = .65,
 gentrifydataTrain <- gentrifydata[ trainIndex,]
 gentrifydataTest  <- gentrifydata[-trainIndex,]
 
-gentrifyModel <- glm(gentrification ~ .,data=gentrifydataTrain %>% dplyr::select(gentrification, changeinpoverty,changeinbachelor, changeinwhite,pctBachelors20,pctBachelors,changein2544,houseprice20,rent,rent20,changeinhouseprice,newhousingunit),family="binomial"(link="logit"))
+gentrifyModel <- glm(gentrification ~ .,data=gentrifydataTrain %>% dplyr::select(gentrification, changeinpoverty,changeinbachelor, changeinwhite,pctBachelors20,changein2544,houseprice20,rent,rent20,changeinhouseprice,newhousingunit, incomeChange,crimeChange, ForMig_Change, Density_Change,race),family="binomial"(link="logit"))
 
 # Load necessary libraries
 library(dplyr)
@@ -810,7 +803,7 @@ pROC::auc(testProbs$Outcome, testProbs$Probs) # AUC: .73
 
 # Replace NA values in the 'gentrification' column with 0 (or another appropriate value)
 gentrifydata_clean <- gentrifydata %>%
-  select(gentrification, changeinpoverty,changeinbachelor, changeinwhite,pctBachelors20,pctBachelors,changein2544,houseprice20,rent,rent20,changeinhouseprice,newhousingunit) %>%
+  select(gentrification,changeinpoverty,changeinbachelor, changeinwhite,pctBachelors20,changein2544,houseprice20,rent,rent20,changeinhouseprice,newhousingunit, incomeChange,crimeChange, ForMig_Change, Density_Change,race) %>%
   na.omit() 
 
 # Convert 'gentrification' to a factor with levels that are valid R variable names
@@ -850,7 +843,7 @@ ctrl <- trainControl(
 # Fit the model
 cvFit <- train(gentrification ~ .,
                data = gentrifydata_clean %>%
-                 select(gentrification, changeinpoverty,changeinbachelor, changeinwhite,pctBachelors20,pctBachelors,changein2544,houseprice20,rent,rent20,changeinhouseprice,newhousingunit),
+                 select(gentrification,changeinpoverty,changeinbachelor, changeinwhite,pctBachelors20,changein2544,houseprice20,rent,rent20,changeinhouseprice,newhousingunit, incomeChange,crimeChange, ForMig_Change, Density_Change,race),
                method = "glm",
                family = "binomial",
                metric = "Accuracy",
@@ -870,14 +863,208 @@ dplyr::select(cvFit$resample, -Resample) %>%
   gather(metric, value) %>%
   left_join(gather(cvFit$results[2:4], metric, mean)) %>%
   ggplot(aes(value)) + 
-    geom_histogram(bins=35, fill = "#6baed6") +
+    geom_histogram(bins=35, fill = "#7892B5") +
     facet_wrap(~metric) +
-    geom_vline(aes(xintercept = mean), colour = "#08519c", linetype = 3, size = 1.5) +
+    geom_vline(aes(xintercept = mean), colour = "#D98481", linetype = 3, size = 1.5) +
     scale_x_continuous(limits = c(0, 1)) +
     labs(x="Goodness of Fit", y="Count", title="CV Goodness of Fit Metrics",
          subtitle = "Across-fold mean reprented as dotted lines")
 
 ```
+
+
+
+
+## Generalizability under Racial Context
+
+
+```{r}
+
+gentrifydata %>%
+    group_by(gentrification, race) %>%
+    summarize(n = n()) %>%
+    mutate(freq = n / sum(n)) %>% filter(gentrification == "1") %>%
+    ggplot(aes(reorder(race, -freq), freq)) +
+    geom_bar(stat = "identity", position = "dodge", fill = palette2) +
+    labs(title = "Gentrification by Dominant Race",
+         y = "Rate", x = "Race") +
+    theme_minimal() + theme(axis.text.x = element_text(angle = 0, hjust = 1))
+```
+```{r}
+gentrifydataTrain <- gentrifydata[ trainIndex,]
+gentrifydataTest  <- gentrifydata[-trainIndex,]
+```
+
+
+
+```{r}
+
+reg.noRace <- glm(gentrification ~ .,data=gentrifydataTrain %>% dplyr::select(gentrification, changeinpoverty,changeinbachelor, changeinwhite,pctBachelors20,changein2544,houseprice20,rent,rent20,changeinhouseprice,newhousingunit, incomeChange,crimeChange, ForMig_Change, Density_Change),family="binomial"(link="logit"))
+
+reg.withRace <- glm(gentrification ~ .,data=gentrifydataTrain %>% dplyr::select(gentrification, changeinpoverty,changeinbachelor, changeinwhite,pctBachelors20,changein2544,houseprice20,rent,rent20,changeinhouseprice,newhousingunit, incomeChange,crimeChange, ForMig_Change, Density_Change,race),family="binomial"(link="logit"))
+
+```
+
+
+```{r}
+testProbs_race <- 
+  data.frame(class = gentrifydataTest$gentrification,
+             probs = predict(reg.noRace, gentrifydataTest, type = "response"),
+             Race = gentrifydataTest$race)
+```
+
+
+
+```{r}
+mutate(testProbs_race, predClass = ifelse(probs >= .1, 1, 0)) %>%
+  group_by(Race) %>%
+  summarize(Observed.gentrification = sum(class) / n(),
+            Predicted.gentrification = sum(predClass) / n()) %>%
+  gather(Variable, Value, -Race) %>%
+  ggplot(aes(Race, Value)) +
+    geom_bar(aes(fill = Race), position="dodge", stat="identity") +
+    scale_fill_manual(values = palette2) +
+    facet_wrap(~Variable) +
+    labs(title = "Observed and predicted gentrification", x = "Race", y = "Rate") +
+    theme_minimal() + theme(axis.text.x = element_text(angle = 0, hjust = 1))
+```
+
+
+```{r}
+iterateThresholds <- function(data, observedClass, predictedProbs, group) {
+  observedClass <- enquo(observedClass)
+  predictedProbs <- enquo(predictedProbs)
+  group <- enquo(group)
+  x = .01
+  all_prediction <- data.frame()
+  
+  if (missing(group)) {
+  
+    while (x <= 1) {
+    this_prediction <- data.frame()
+    
+    this_prediction <-
+      data %>%
+      mutate(predclass = ifelse(!!predictedProbs > x, 1,0)) %>%
+      count(predclass, !!observedClass) %>%
+      summarize(Count_TN = sum(n[predclass==0 & !!observedClass==0]),
+                Count_TP = sum(n[predclass==1 & !!observedClass==1]),
+                Count_FN = sum(n[predclass==0 & !!observedClass==1]),
+                Count_FP = sum(n[predclass==1 & !!observedClass==0]),
+                Rate_TP = Count_TP / (Count_TP + Count_FN),
+                Rate_FP = Count_FP / (Count_FP + Count_TN),
+                Rate_FN = Count_FN / (Count_FN + Count_TP),
+                Rate_TN = Count_TN / (Count_TN + Count_FP),
+                Accuracy = (Count_TP + Count_TN) / 
+                           (Count_TP + Count_TN + Count_FN + Count_FP)) %>%
+      mutate(Threshold = round(x,2))
+    
+    all_prediction <- rbind(all_prediction,this_prediction)
+    x <- x + .01
+  }
+  return(all_prediction)
+  }
+  else if (!missing(group)) { 
+   while (x <= 1) {
+    this_prediction <- data.frame()
+    
+    this_prediction <-
+      data %>%
+      mutate(predclass = ifelse(!!predictedProbs > x, 1,0)) %>%
+      group_by(!!group) %>%
+      count(predclass, !!observedClass) %>%
+      summarize(Count_TN = sum(n[predclass==0 & !!observedClass==0]),
+                Count_TP = sum(n[predclass==1 & !!observedClass==1]),
+                Count_FN = sum(n[predclass==0 & !!observedClass==1]),
+                Count_FP = sum(n[predclass==1 & !!observedClass==0]),
+                Rate_TP = Count_TP / (Count_TP + Count_FN),
+                Rate_FP = Count_FP / (Count_FP + Count_TN),
+                Rate_FN = Count_FN / (Count_FN + Count_TP),
+                Rate_TN = Count_TN / (Count_TN + Count_FP),
+                Accuracy = (Count_TP + Count_TN) / 
+                           (Count_TP + Count_TN + Count_FN + Count_FP)) %>%
+      mutate(Threshold = round(x, 2))
+    
+    all_prediction <- rbind(all_prediction, this_prediction)
+    x <- x + .01
+  }
+  return(all_prediction)
+  }
+}
+```
+
+
+
+
+```{r}
+testProbs_race.thresholds <- 
+  iterateThresholds(data=testProbs_race, observedClass = class, 
+                    predictedProbs = probs, group = Race)
+
+filter(testProbs_race.thresholds, Threshold == .3)  %>%
+  dplyr::select(Accuracy, Race, starts_with("Rate")) %>%
+  gather(Variable, Value, -Race) %>%
+    ggplot(aes(Variable, Value, fill = Race)) +
+      geom_bar(aes(fill = Race), position = "dodge", stat = "identity") +
+      scale_fill_manual(values = palette2) +
+      labs(title="Confusion matrix rates by race",
+           subtitle = "10% threshold", x = "Outcome",y = "Rate") +
+      theme_minimal() + theme(axis.text.x = element_text(angle = 0, hjust = 1)) 
+```
+
+
+```{r}
+# Calculate the ROC curve and AUC for each race
+roc_list <- lapply(split(testProbs_race, testProbs_race$Race), function(subdata) {
+  roc(response = subdata$class, predictor = subdata$probs)
+})
+
+# Create an empty ggplot object with the correct aesthetics
+ggroc_combined <- ggplot() + theme_minimal() + 
+  labs(title = "ROC Curves by race", x = "False Positive Rate", y = "True Positive Rate") +
+  geom_abline(slope=1, intercept=0, linetype="dashed", color = "grey")
+
+# Calculate the position for AUC annotations
+max_specificity <- max(sapply(roc_list, function(x) max(1 - x$specificities)))
+min_sensitivity <- min(sapply(roc_list, function(x) min(x$sensitivities)))
+
+# Adding ROC curves to the plot with annotations for AUC
+for (i in seq_along(roc_list)) {
+  roc_data <- roc_list[[i]]
+  auc_value <- auc(roc_data)
+  ggroc_combined <- ggroc_combined + 
+    geom_line(data = data.frame(fp = 1 - roc_data$specificities, tp = roc_data$sensitivities),
+              aes(x = fp, y = tp), color = palette2[i], size = 0.5) +
+    geom_point(data = data.frame(fp = 1 - roc_data$specificities, tp = roc_data$sensitivities),
+               aes(x = fp, y = tp), color = palette2[i], size = 0.3) +
+    annotate("text", x = max_specificity - 0.1, y = min_sensitivity + 0.05 * (length(roc_list) - i + 1), 
+             label = paste(names(roc_list)[i], "AUC =", round(auc_value, 3)), 
+             hjust = 1, color = palette2[i], size = 3.5)
+}
+
+print(ggroc_combined)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # Validation on Chicago
 
