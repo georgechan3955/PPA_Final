@@ -1,6 +1,6 @@
 ---
-title: "Measuring Gentrification - A Study in Boston"
-author: "Xiayuanshan Gao"
+title: "Gentrification Prediction Model for the City of Los Angeles"
+author: "George Chen, Jiahang Li, Xiayuanshan Gao"
 date: "2024-05-07"
 output: 
   html_document:
@@ -141,7 +141,7 @@ crime2020 <-
 ```
 
 
-## Census Data 2015 and 2020
+### Census Data 2015 and 2020
 
 ```{r cache = TRUE, message = FALSE, warning = FALSE,results='hide'}
 
@@ -1513,22 +1513,24 @@ tractclippednewchi <- tractclippednewchi  %>%
 
 ### Calculate Crime by Tracts
 
-```{r cache = False, message = FALSE, warning = FALSE,results='hide'}
+```{r message=FALSE, warning=FALSE, cache=FALSE, include=FALSE, paged.print=FALSE, results='hide'}
 
-crime2015_chi <- 
-    read.socrata("https://data.cityofchicago.org/Public-Safety/Crimes-2015/vwwp-7yr9") %>% 
-    dplyr::select(-Date, -Updated.On) %>%
-    mutate(x = gsub("[()]", "", Location)) %>%
-    separate(x,into= c("Y","X"), sep=",") %>%
-    mutate(X = as.numeric(X),Y = as.numeric(Y)) %>% 
-    na.omit() %>%
-    st_as_sf(coords = c("X", "Y"), crs = 4326, agr = "constant")%>%
-    st_transform('ESRI:102271') %>%  
-    distinct()
+
+    crime2015_chi <- 
+      read.socrata("https://data.cityofchicago.org/Public-Safety/Crimes-2015/vwwp-7yr9") %>% 
+      dplyr::select(-Date, -Updated.On) %>%
+      mutate(x = gsub("[()]", "", Location)) %>%
+      separate(x, into = c("Y", "X"), sep = ",") %>%
+      mutate(X = as.numeric(X), Y = as.numeric(Y)) %>% 
+      na.omit() %>%
+      st_as_sf(coords = c("X", "Y"), crs = 4326, agr = "constant") %>%
+      st_transform('ESRI:102271') %>%
+      distinct()
+
 
 ```
 
-```{r}
+```{r message=FALSE, warning=FALSE, cache=FALSE, paged.print=FALSE, results='hide', include=FALSE}
 crime2020_chi <- 
     read.socrata("https://data.cityofchicago.org/Public-Safety/Crimes-2020/qzdf-xmn8") %>% 
     dplyr::select(-Date, -Updated.On) %>%
@@ -1580,13 +1582,6 @@ tractclippednewchi <- tractclippednewchi %>%
   mutate(crimeChangechi = crime2020countchi - crime2015countchi)
 
 ```
-
-
-
-```{r}
-colnames(tractclippednewchi)
-```
-
 
 
 ## Modeling building

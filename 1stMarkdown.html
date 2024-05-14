@@ -9,11 +9,11 @@
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
 
-<meta name="author" content="Xiayuanshan Gao" />
+<meta name="author" content="George Chen, Jiahang Li, Xiayuanshan Gao" />
 
 <meta name="date" content="2024-05-07" />
 
-<title>Measuring Gentrification - A Study in Boston</title>
+<title>Gentrification Prediction Model for the City of Los Angeles</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -1780,9 +1780,9 @@ border-radius: 0px;
 
 
 
-<h1 class="title toc-ignore">Measuring Gentrification - A Study in
-Boston</h1>
-<h4 class="author">Xiayuanshan Gao</h4>
+<h1 class="title toc-ignore">Gentrification Prediction Model for the
+City of Los Angeles</h1>
+<h4 class="author">George Chen, Jiahang Li, Xiayuanshan Gao</h4>
 <h4 class="date">2024-05-07</h4>
 
 </div>
@@ -1812,10 +1812,10 @@ Facities</h3>
 <h3><span class="header-section-number">2.1.5</span> Crime Data 2015 and
 2020</h3>
 </div>
+<div id="census-data-2015-and-2020" class="section level3" number="2.1.6">
+<h3><span class="header-section-number">2.1.6</span> Census Data 2015
+and 2020</h3>
 </div>
-<div id="census-data-2015-and-2020" class="section level2" number="2.2">
-<h2><span class="header-section-number">2.2</span> Census Data 2015 and
-2020</h2>
 </div>
 </div>
 <div id="measuring-gentrification" class="section level1" number="3">
@@ -2267,119 +2267,6 @@ Census Data</h3>
 <div id="calculate-crime-by-tracts" class="section level3" number="6.3.2">
 <h3><span class="header-section-number">6.3.2</span> Calculate Crime by
 Tracts</h3>
-<pre><code>##   [1] &quot;Id&quot;                                     
-##   [2] &quot;GEOID&quot;                                  
-##   [3] &quot;totalPop&quot;                               
-##   [4] &quot;male&quot;                                   
-##   [5] &quot;female&quot;                                 
-##   [6] &quot;age_18_24&quot;                              
-##   [7] &quot;age_25_44&quot;                              
-##   [8] &quot;age_45_64&quot;                              
-##   [9] &quot;age_65plus&quot;                             
-##  [10] &quot;white&quot;                                  
-##  [11] &quot;popblack&quot;                               
-##  [12] &quot;latino&quot;                                 
-##  [13] &quot;other_race&quot;                             
-##  [14] &quot;income_less_20k&quot;                        
-##  [15] &quot;income_20k_40k&quot;                         
-##  [16] &quot;income_40k_60k&quot;                         
-##  [17] &quot;income_60k_80k&quot;                         
-##  [18] &quot;income_80k_100k&quot;                        
-##  [19] &quot;income_more_100k&quot;                       
-##  [20] &quot;migration_total&quot;                        
-##  [21] &quot;migration_within_county&quot;                
-##  [22] &quot;migration_different_county_same_state&quot;  
-##  [23] &quot;migration_different_state&quot;              
-##  [24] &quot;migration_from_abroad&quot;                  
-##  [25] &quot;edu_less_high_school&quot;                   
-##  [26] &quot;edu_high_school_grad&quot;                   
-##  [27] &quot;edu_some_college&quot;                       
-##  [28] &quot;edu_bachelors&quot;                          
-##  [29] &quot;edu_grad_professional&quot;                  
-##  [30] &quot;total_housing_units&quot;                    
-##  [31] &quot;total_poverty&quot;                          
-##  [32] &quot;vacant_units&quot;                           
-##  [33] &quot;white_houseOwner&quot;                       
-##  [34] &quot;total_occupied_units&quot;                   
-##  [35] &quot;median_HH_income&quot;                       
-##  [36] &quot;houseprice&quot;                             
-##  [37] &quot;rent&quot;                                   
-##  [38] &quot;travetimetowork&quot;                        
-##  [39] &quot;WhiteHOrate&quot;                            
-##  [40] &quot;pctBachelors&quot;                           
-##  [41] &quot;pctPoverty&quot;                             
-##  [42] &quot;pctWhitePop&quot;                            
-##  [43] &quot;pctLatinoPop&quot;                           
-##  [44] &quot;pctBlackPop&quot;                            
-##  [45] &quot;pctMigration&quot;                           
-##  [46] &quot;pctForeignMig&quot;                          
-##  [47] &quot;pct2540&quot;                                
-##  [48] &quot;landArea&quot;                               
-##  [49] &quot;popDensity&quot;                             
-##  [50] &quot;NAME&quot;                                   
-##  [51] &quot;totalPop20&quot;                             
-##  [52] &quot;male20&quot;                                 
-##  [53] &quot;female20&quot;                               
-##  [54] &quot;age_18_2420&quot;                            
-##  [55] &quot;age_25_4420&quot;                            
-##  [56] &quot;age_45_6420&quot;                            
-##  [57] &quot;age_65plus20&quot;                           
-##  [58] &quot;white20&quot;                                
-##  [59] &quot;popblack20&quot;                             
-##  [60] &quot;latino20&quot;                               
-##  [61] &quot;other_race20&quot;                           
-##  [62] &quot;income_less_20k20&quot;                      
-##  [63] &quot;income_20k_40k20&quot;                       
-##  [64] &quot;income_40k_60k20&quot;                       
-##  [65] &quot;income_60k_80k20&quot;                       
-##  [66] &quot;income_80k_100k20&quot;                      
-##  [67] &quot;income_more_100k20&quot;                     
-##  [68] &quot;migration_total20&quot;                      
-##  [69] &quot;migration_within_county20&quot;              
-##  [70] &quot;migration_different_county_same_state20&quot;
-##  [71] &quot;migration_different_state20&quot;            
-##  [72] &quot;migration_from_abroad20&quot;                
-##  [73] &quot;edu_less_high_school20&quot;                 
-##  [74] &quot;edu_high_school_grad20&quot;                 
-##  [75] &quot;edu_some_college20&quot;                     
-##  [76] &quot;edu_bachelors20&quot;                        
-##  [77] &quot;edu_grad_professional20&quot;                
-##  [78] &quot;total_housing_units20&quot;                  
-##  [79] &quot;total_poverty20&quot;                        
-##  [80] &quot;vacant_units20&quot;                         
-##  [81] &quot;white_houseOwner20&quot;                     
-##  [82] &quot;total_Ooccupied_Uunits20&quot;               
-##  [83] &quot;median_HH_income20&quot;                     
-##  [84] &quot;houseprice20&quot;                           
-##  [85] &quot;rent20&quot;                                 
-##  [86] &quot;WhiteHOrate20&quot;                          
-##  [87] &quot;pctBachelors20&quot;                         
-##  [88] &quot;pctPoverty20&quot;                           
-##  [89] &quot;pctWhitePop20&quot;                          
-##  [90] &quot;pctLatinoPop20&quot;                         
-##  [91] &quot;pctBlackPop20&quot;                          
-##  [92] &quot;pctMigration20&quot;                         
-##  [93] &quot;pctForeignMig20&quot;                        
-##  [94] &quot;pct254020&quot;                              
-##  [95] &quot;landArea20&quot;                             
-##  [96] &quot;popDensity20&quot;                           
-##  [97] &quot;gentrification&quot;                         
-##  [98] &quot;changeinpoverty&quot;                        
-##  [99] &quot;changeinbachelor&quot;                       
-## [100] &quot;changeinwhite&quot;                          
-## [101] &quot;changeinhouseprice&quot;                     
-## [102] &quot;changeinrent&quot;                           
-## [103] &quot;changein2544&quot;                           
-## [104] &quot;newhousingunit&quot;                         
-## [105] &quot;migChange&quot;                              
-## [106] &quot;incomeChange&quot;                           
-## [107] &quot;minorityChange&quot;                         
-## [108] &quot;ForMig_Change&quot;                          
-## [109] &quot;Density_Change&quot;                         
-## [110] &quot;crime2015countchi&quot;                      
-## [111] &quot;crime2020countchi&quot;                      
-## [112] &quot;geometry&quot;                               
-## [113] &quot;crimeChangechi&quot;</code></pre>
 </div>
 </div>
 <div id="modeling-building-1" class="section level2" number="6.4">
